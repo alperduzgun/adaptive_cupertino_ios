@@ -1,0 +1,475 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
+import '../platform/ios_version.dart';
+import '../util/serialization.dart';
+import 'action.dart';
+
+/// Adaptive AppBar that uses native iOS UINavigationBar on iOS 18+
+/// and falls back to CupertinoNavigationBar on older versions.
+class AdaptiveCupertinoAppBar extends StatefulWidget
+    implements ObstructingPreferredSizeWidget {
+  /// The title widget displayed in the navigation bar.
+  final Widget? title;
+
+  /// Widget to place at the leading position (typically a back button).
+  final Widget? leading;
+
+  /// Reliable leading action (uses IconData).
+  final AdaptiveCupertinoAction? leadingAction;
+
+  /// Widgets to place at the trailing position (typically action buttons).
+  final List<Widget>? trailing;
+
+  /// Reliable trailing actions (uses IconData).
+  final List<AdaptiveCupertinoAction>? trailingActions;
+
+  /// Whether to display the title as a large title on iOS 11+.
+  ///
+  /// Only applicable when using native iOS navigation bar.
+  /// Defaults to false.
+  final bool largeTitle;
+
+  /// Background color (only used in fallback mode).
+  final Color? backgroundColor;
+
+  /// Border settings (only used in fallback mode).
+  final Border? border;
+
+  /// Padding for the middle widget (only used in fallback mode).
+  final EdgeInsetsDirectional? padding;
+
+  /// Whether to automatically add a back button (only in fallback mode).
+  final bool automaticallyImplyLeading;
+
+  const AdaptiveCupertinoAppBar({
+    Key? key,
+    this.title,
+    this.leading,
+    this.leadingAction,
+    this.trailing,
+    this.trailingActions,
+    this.largeTitle = false,
+    this.backgroundColor,
+    this.border,
+    this.padding,
+    this.automaticallyImplyLeading = true,
+  }) : super(key: key);
+
+  @override
+  State<AdaptiveCupertinoAppBar> createState() =>
+      _AdaptiveCupertinoAppBarState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(44.0);
+
+  @override
+  bool shouldFullyObstruct(BuildContext context) => false;
+}
+
+class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
+  bool _useNativeAppBar = false;
+  bool _useModernToolbar = false; // iOS 26+ native UIToolbar
+  bool _isCheckingVersion = true;
+  MethodChannel? _appBarChannel;
+  String? _titleText;
+
+  @override
+  void initState() {
+    super.initState();
+    _extractTitleText();
+    _checkIOSVersion();
+  }
+
+  void _extractTitleText() {
+    _titleText = WidgetSerializer.extractText(widget.title);
+  }
+
+  /// Check iOS version for native UI support
+  /// CHAOS RESISTANT: Multiple fallback layers, fail-safe defaults
+  /// IDEMPOTENT: Safe to call multiple times (cached by IOSVersion)
+  Future<void> _checkIOSVersion() async {
+    // Fast path: Non-iOS platforms
+    if (!Platform.isIOS) {
+      if (mounted) {
+        setState(() {
+          _useNativeAppBar = false;
+          _useModernToolbar = false;
+          _isCheckingVersion = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      // Check iOS 26+ for modern toolbar (ANTI-FRAGILE: Primary check)
+      final supportsModernToolbar = await IOSVersion().supportsModernToolbar();
+
+      // Fallback: Check iOS 18+ for navigation bar (GRACEFUL DEGRADATION)
+      final supportsNativeUI = await IOSVersion().supportsNativeUI();
+
+      if (mounted) {
+        setState(() {
+          _useModernToolbar = supportsModernToolbar;
+          _useNativeAppBar = supportsNativeUI;
+          _isCheckingVersion = false;
+        });
+      }
+
+      // OBSERVABILITY: Structured logging
+      if (kDebugMode) {
+        if (supportsModernToolbar) {
+          debugPrint(
+              '📱 AppBar: Using native iOS 26+ UIToolbar (pill-shaped buttons)');
+        } else if (supportsNativeUI) {
+          debugPrint('📱 AppBar: Using native iOS 18-25 UINavigationBar');
+        } else {
+          debugPrint('📱 AppBar: Using fallback CupertinoNavigationBar');
+        }
+      }
+    } catch (e) {
+      // FAIL-SAFE: On any error, use fallback
+      if (kDebugMode) {
+        debugPrint('⚠️ AppBar: Version check failed: $e, using fallback');
+      }
+
+      if (mounted) {
+        setState(() {
+          _useNativeAppBar = false;
+          _useModernToolbar = false;
+          _isCheckingVersion = false;
+        });
+      }
+    }
+  }
+
+  void _setupPlatformChannel(int viewId) {
+    _appBarChannel = MethodChannel('adaptive_cupertino_ios/app_bar_$viewId');
+    _appBarChannel?.setMethodCallHandler(_handleMethodCall);
+  }
+
+  Future<dynamic> _handleMethodCall(MethodCall call) async {
+    switch (call.method) {
+      case 'onLeadingTapped':
+        if (widget.leadingAction != null) {
+          widget.leadingAction!.onPressed?.call();
+        } else {
+          _triggerWidgetTap(widget.leading);
+        }
+        break;
+      case 'onTrailingTapped':
+        final index = call.arguments['index'] as int?;
+        if (index != null) {
+          if (widget.trailingActions != null &&
+              index < widget.trailingActions!.length) {
+            widget.trailingActions![index].onPressed?.call();
+          } else if (widget.trailing != null &&
+              index < widget.trailing!.length) {
+            _triggerWidgetTap(widget.trailing![index]);
+          }
+        }
+        break;
+    }
+  }
+
+  void _triggerWidgetTap(Widget? widget) {
+    if (widget == null) return;
+
+    // Try to extract and call onPressed from CupertinoButton
+    if (widget is CupertinoButton) {
+      widget.onPressed?.call();
+      return;
+    }
+
+    // Try to extract and call onTap from GestureDetector
+    try {
+      final dynamic dynamicWidget = widget;
+      final dynamic onTap = dynamicWidget.onTap;
+      if (onTap != null && onTap is VoidCallback) {
+        onTap();
+      }
+    } catch (_) {
+      // Widget doesn't have onTap
+    }
+  }
+
+  @override
+  void didUpdateWidget(AdaptiveCupertinoAppBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Update title if changed
+    if (widget.title != oldWidget.title) {
+      _extractTitleText();
+      if (_useNativeAppBar && _titleText != null) {
+        _appBarChannel?.invokeMethod('setTitle', {'title': _titleText});
+      }
+    }
+
+    // Update large title setting if changed
+    if (widget.largeTitle != oldWidget.largeTitle && _useNativeAppBar) {
+      _appBarChannel?.invokeMethod('setLargeTitle', {
+        'enabled': widget.largeTitle,
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Show placeholder while checking version (CHAOS: Non-blocking UI)
+    if (_isCheckingVersion) {
+      return SizedBox(
+        height: widget.preferredSize.height,
+        child: Container(
+          color: CupertinoColors.systemBackground.resolveFrom(context),
+        ),
+      );
+    }
+
+    // ANTI-FRAGILE: Three-tier fallback strategy
+    // 1. iOS 26+ → Native UIToolbar (pill-shaped buttons)
+    // 2. iOS 18-25 → Native UINavigationBar (liquid glass)
+    // 3. iOS <18 → CupertinoNavigationBar (standard)
+
+    // Validate prerequisites for native UI
+    // SECURITY: Ensure title is available and widgets are serializable
+    bool canUseNative =
+        (_useModernToolbar || _useNativeAppBar) && _titleText != null;
+
+    if (canUseNative) {
+      // Check serialization only if explicit actions are NOT provided
+      if (widget.leadingAction == null && widget.leading != null) {
+        final leadingData = WidgetSerializer.serialize(widget.leading!);
+        if (leadingData == null) {
+          canUseNative = false;
+          if (kDebugMode) {
+            debugPrint(
+                '⚠️ [AppBar] Leading widget not serializable, using fallback');
+          }
+        }
+      }
+    }
+
+    if (canUseNative) {
+      if (widget.trailingActions == null &&
+          widget.trailing != null &&
+          widget.trailing!.isNotEmpty) {
+        final trailingData = widget.trailing!
+            .map((w) => WidgetSerializer.serialize(w))
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        if (trailingData.isEmpty) {
+          canUseNative = false;
+          if (kDebugMode) {
+            debugPrint(
+                '⚠️ [AppBar] Trailing widgets not serializable, using fallback');
+          }
+        }
+      }
+    }
+
+    // ROUTING: Choose appropriate implementation
+    if (canUseNative) {
+      if (_useModernToolbar) {
+        // iOS 26+: Native UIToolbar with pill-shaped buttons
+        if (kDebugMode) {
+          debugPrint('📱 AppBar: Using native iOS 26+ UIToolbar');
+          debugPrint('   Title: $_titleText');
+          debugPrint('   Has leading: ${widget.leading != null}');
+          debugPrint('   Trailing count: ${widget.trailing?.length ?? 0}');
+        }
+        return _buildNativeToolbar();
+      } else if (_useNativeAppBar) {
+        // iOS 18-25: Native UINavigationBar
+        if (kDebugMode) {
+          debugPrint('📱 AppBar: Using native iOS 18-25 UINavigationBar');
+          debugPrint('   Title: $_titleText');
+          debugPrint('   Has leading: ${widget.leading != null}');
+          debugPrint('   Trailing count: ${widget.trailing?.length ?? 0}');
+        }
+        return _buildNativeAppBar();
+      }
+    }
+
+    // Fallback: Cupertino standard (iOS <18 or serialization failed)
+    if (kDebugMode) {
+      debugPrint('📱 AppBar: Using fallback CupertinoNavigationBar');
+      debugPrint('   Has leading: ${widget.leading != null}');
+      debugPrint('   Has trailing: ${widget.trailing != null}');
+      debugPrint('   Title: ${widget.title}');
+    }
+
+    return _buildFallbackAppBar(context);
+  }
+
+  /// Build iOS 26+ native UIToolbar with pill-shaped buttons
+  /// NATIVE BEHAVIOR: iOS 26 SDK automatically groups buttons
+  Widget _buildNativeToolbar() {
+    // Serialize leading widget
+    Map<String, dynamic>? leadingData;
+    if (widget.leadingAction != null) {
+      leadingData = widget.leadingAction!.toMap();
+    } else if (widget.leading != null) {
+      leadingData = WidgetSerializer.serialize(widget.leading!);
+      if (kDebugMode) {
+        debugPrint('📱 [Toolbar] Serialized leading: $leadingData');
+      }
+    }
+
+    // Serialize trailing widgets
+    List<Map<String, dynamic>>? trailingData;
+    if (widget.trailingActions != null) {
+      trailingData = widget.trailingActions!.map((a) => a.toMap()).toList();
+    } else if (widget.trailing != null && widget.trailing!.isNotEmpty) {
+      trailingData = widget.trailing!
+          .map((w) => WidgetSerializer.serialize(w))
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (kDebugMode) {
+        debugPrint('📱 [Toolbar] Serialized trailing: $trailingData');
+      }
+    }
+
+    // Let native view handle its own top padding/blur
+    // Wrap with subtle gradient to improve Liquid Glass blending
+    return Container(
+      height: 44.0 + MediaQuery.of(context).padding.top,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            CupertinoColors.systemBackground
+                .resolveFrom(context)
+                .withAlpha(220),
+            CupertinoColors.systemBackground.resolveFrom(context).withAlpha(0),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: UiKitView(
+        viewType: 'adaptive_cupertino_ios/toolbar',
+        creationParams: {
+          'title': _titleText,
+          'topPadding': MediaQuery.of(context).padding.top,
+          if (leadingData != null) 'leading': leadingData,
+          if (trailingData != null) 'trailing': trailingData,
+        },
+        creationParamsCodec: const StandardMessageCodec(),
+        onPlatformViewCreated: (int viewId) {
+          _appBarChannel =
+              MethodChannel('adaptive_cupertino_ios/toolbar_$viewId');
+          _appBarChannel?.setMethodCallHandler(_handleMethodCall);
+        },
+      ),
+    );
+  }
+
+  /// Build iOS 18-25 native UINavigationBar
+  Widget _buildNativeAppBar() {
+    // Serialize leading widget
+    Map<String, dynamic>? leadingData;
+    if (widget.leadingAction != null) {
+      leadingData = widget.leadingAction!.toMap();
+    } else if (widget.leading != null) {
+      leadingData = WidgetSerializer.serialize(widget.leading!);
+      if (kDebugMode) {
+        debugPrint('📱 [AppBar] Serialized leading: $leadingData');
+      }
+    }
+
+    // Serialize trailing widgets
+    List<Map<String, dynamic>>? trailingData;
+    if (widget.trailingActions != null) {
+      trailingData = widget.trailingActions!.map((a) => a.toMap()).toList();
+    } else if (widget.trailing != null && widget.trailing!.isNotEmpty) {
+      trailingData = widget.trailing!
+          .map((w) => WidgetSerializer.serialize(w))
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (kDebugMode) {
+        debugPrint('📱 [AppBar] Serialized trailing: $trailingData');
+      }
+    }
+
+    // Let native view handle its own top padding/blur
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Container(
+      height: (widget.largeTitle ? 96.0 : 44.0) + topPadding,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            CupertinoColors.systemBackground
+                .resolveFrom(context)
+                .withAlpha(220),
+            CupertinoColors.systemBackground.resolveFrom(context).withAlpha(0),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: UiKitView(
+        viewType: 'adaptive_cupertino_ios/app_bar',
+        creationParams: {
+          'title': _titleText,
+          'largeTitle': widget.largeTitle,
+          'topPadding': topPadding,
+          if (leadingData != null) 'leading': leadingData,
+          if (trailingData != null) 'trailing': trailingData,
+        },
+        creationParamsCodec: const StandardMessageCodec(),
+        onPlatformViewCreated: _setupPlatformChannel,
+      ),
+    );
+  }
+
+  // Serialization moved to WidgetSerializer utility
+
+  Widget _buildFallbackAppBar(BuildContext context) {
+    // Style fallback to look like iOS 18+ liquid glass
+    return Builder(
+      builder: (context) {
+        // Use blur background for iOS 18+ look
+        return ColoredBox(
+          color: CupertinoColors.systemBackground.resolveFrom(context),
+          child: SafeArea(
+            bottom: false,
+            child: CupertinoNavigationBar(
+              middle: widget.title,
+              leading: widget.leading,
+              trailing: widget.trailing != null && widget.trailing!.isNotEmpty
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: widget.trailing!,
+                    )
+                  : null,
+              backgroundColor: widget.backgroundColor ??
+                  CupertinoColors.systemBackground
+                      .resolveFrom(context)
+                      .withOpacity(0.8), // Semi-transparent like liquid glass
+              border: widget.border ??
+                  Border(
+                    bottom: BorderSide(
+                      color: CupertinoColors.separator
+                          .resolveFrom(context)
+                          .withOpacity(0.3),
+                      width: 0.0,
+                    ),
+                  ),
+              padding: widget.padding,
+              automaticallyImplyLeading: widget.automaticallyImplyLeading,
+              transitionBetweenRoutes: true, // Smooth transitions
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _appBarChannel?.setMethodCallHandler(null);
+    super.dispose();
+  }
+}

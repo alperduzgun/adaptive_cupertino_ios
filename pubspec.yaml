@@ -1,0 +1,25 @@
+name: adaptive_cupertino_ios
+description: Native iOS Cupertino widgets with adaptive platform support. Provides iOS 18+ Liquid Glass TabBar/AppBar and iOS 26+ Glass Buttons with automatic fallback.
+version: 0.2.1
+homepage: https://github.com/alper/adaptive_cupertino_ios
+repository: https://github.com/alper/adaptive_cupertino_ios
+issue_tracker: https://github.com/alper/adaptive_cupertino_ios/issues
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: AdaptiveCupertinoPlugin
