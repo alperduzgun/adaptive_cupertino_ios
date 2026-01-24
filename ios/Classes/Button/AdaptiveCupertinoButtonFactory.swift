@@ -1,11 +1,12 @@
 import Flutter
 import UIKit
 
-/// Platform View Factory for Adaptive Cupertino Glass Button
+/// Platform View Factory for Adaptive Cupertino Button
 ///
-/// Creates native iOS buttons with Liquid Glass appearance (iOS 26+).
+/// Creates native iOS buttons with support for modern iOS 26+ styles (Liquid Glass)
+/// and fails safe to standard UIButton on older versions.
 @available(iOS 15.0, *)
-class AdaptiveCupertinoGlassButtonFactory: NSObject, FlutterPlatformViewFactory {
+class AdaptiveCupertinoButtonFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
 
     init(messenger: FlutterBinaryMessenger) {
@@ -18,7 +19,7 @@ class AdaptiveCupertinoGlassButtonFactory: NSObject, FlutterPlatformViewFactory 
         viewIdentifier viewId: Int64,
         arguments args: Any?
     ) -> FlutterPlatformView {
-        return AdaptiveCupertinoGlassButtonPlatformView(
+        return AdaptiveCupertinoButtonPlatformView(
             frame: frame,
             viewIdentifier: viewId,
             arguments: args,
@@ -32,11 +33,13 @@ class AdaptiveCupertinoGlassButtonFactory: NSObject, FlutterPlatformViewFactory 
     }
 }
 
-/// Glass button style variants
-enum GlassButtonStyle: String {
+/// Button style variants
+enum AdaptiveButtonStyle: String {
     case glass = "glass"
     case glassProminent = "glassProminent"
     case glassTinted = "glassTinted"
+    case filled = "filled"
+    case plain = "plain"
 }
 
 /// Icon placement options (iOS 15+)
@@ -47,13 +50,21 @@ enum IconPlacement: String {
     case bottom = "bottom"
 }
 
-/// Platform View wrapper for UIButton with Glass configuration
+/// Platform View wrapper for UIButton with Adaptive configuration
+///
+/// CHAOS ENGINEERING PRINCIPLES:
+/// - Explicit runtime version checks (iOS 26 vs older)
+/// - Safe defaults for missing parameters
+/// - Generic naming to support future button styles (not just Glass)
 @available(iOS 15.0, *)
-class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
+class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
     private var _view: UIView
     private var button: UIButton!
     private var messenger: FlutterBinaryMessenger
     private let channel: FlutterMethodChannel
+    
+    // Runtime version check
+    private let isIOS26: Bool
 
     init(
         frame: CGRect,
@@ -67,6 +78,9 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
             name: "adaptive_cupertino_ios/glass_button_\(viewId)",
             binaryMessenger: messenger
         )
+        // STRICT CHECK: Runtime detection
+        self.isIOS26 = IOSVersionDetector.isIOS26OrNewer()
+        
         super.init()
 
         setupButton(arguments: args)
@@ -90,12 +104,13 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
         let iconName = params["icon"] as? String
         let iconPlacementString = params["iconPlacement"] as? String ?? "leading"
 
-        let style = GlassButtonStyle(rawValue: styleString) ?? .glass
+        let style = AdaptiveButtonStyle(rawValue: styleString) ?? .glass
         let iconPlacement = IconPlacement(rawValue: iconPlacementString) ?? .leading
 
-        // Create button with appropriate configuration
-        if #available(iOS 26.0, *) {
-            button = createGlassButton(
+        // Create button based on availability AND runtime check
+        if #available(iOS 26.0, *), isIOS26 {
+            // Modern iOS 26+ "Liquid Glass" / Pill styles
+            button = createModernButton(
                 title: title,
                 style: style,
                 tintColor: tintColor,
@@ -103,6 +118,7 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
                 iconPlacement: iconPlacement
             )
         } else {
+            // Fallback for older iOS (Standard Filled/Plain)
             button = createFallbackButton(
                 title: title,
                 enabled: enabled,
@@ -127,9 +143,9 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
     }
 
     @available(iOS 26.0, *)
-    private func createGlassButton(
+    private func createModernButton(
         title: String,
-        style: GlassButtonStyle,
+        style: AdaptiveButtonStyle,
         tintColor: String?,
         iconName: String?,
         iconPlacement: IconPlacement
@@ -140,12 +156,16 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
         case .glass:
             config = UIButton.Configuration.glass()
         case .glassProminent:
-            config = UIButton.Configuration.prominentGlass() // Correct API name
+            config = UIButton.Configuration.prominentGlass()
         case .glassTinted:
             config = UIButton.Configuration.glass()
             if let colorHex = tintColor {
-                config.baseBackgroundColor = UIColor(hex: colorHex)
+                 config.baseBackgroundColor = UIColor(hex: colorHex)
             }
+        case .filled:
+             config = UIButton.Configuration.filled()
+        case .plain:
+             config = UIButton.Configuration.plain()
         }
 
         config.title = title
@@ -171,7 +191,7 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
             config.imagePadding = 8
         }
 
-        // Standard padding
+        // Standard padding for modern look
         config.contentInsets = NSDirectionalEdgeInsets(
             top: 12,
             leading: 20,
@@ -180,6 +200,8 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
         )
 
         let button = UIButton(configuration: config)
+        
+        // Dynamic configuration update handler
         button.configurationUpdateHandler = { button in
             var config = button.configuration
 
@@ -222,7 +244,7 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
             config.imagePlacement = .leading
         }
 
-        // Standard padding for fallback look
+        // Standard padding
         config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20)
 
         let button = UIButton(configuration: config)
@@ -263,8 +285,8 @@ class AdaptiveCupertinoGlassButtonPlatformView: NSObject, FlutterPlatformView {
             case "setTitle":
                 if let args = call.arguments as? [String: Any],
                    let title = args["title"] as? String {
-                    if #available(iOS 26.0, *) {
-                        self.button.configuration?.title = title
+                    if #available(iOS 26.0, *), self.isIOS26 {
+                         self.button.configuration?.title = title
                     } else {
                         self.button.setTitle(title, for: .normal)
                     }

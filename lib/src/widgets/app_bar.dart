@@ -410,7 +410,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
         ),
       ),
       child: UiKitView(
-        viewType: 'adaptive_cupertino_ios/app_bar',
+        viewType: 'adaptive_cupertino_ios/navigation_bar',
         creationParams: {
           'title': _titleText,
           'largeTitle': widget.largeTitle,

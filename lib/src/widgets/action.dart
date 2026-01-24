@@ -17,23 +17,34 @@ class AdaptiveCupertinoAction {
   /// Whether this action is destructive (e.g. delete).
   final bool isDestructive;
 
+  /// Whether this action should share background with adjacent actions (iOS 26 grouping).
+  ///
+  /// Defaults to true (grouped). Set to false to force a separate pill.
+  final bool sharesBackground;
+
+  /// The SF Symbol name to use (preferred over IconData for iOS).
+  final String? sfSymbolName;
+
   const AdaptiveCupertinoAction({
     this.icon,
     this.label,
     this.onPressed,
     this.isDestructive = false,
+    this.sfSymbolName,
+    this.sharesBackground = true,
   });
 
   /// Convert to map for platform channel.
   Map<String, dynamic> toMap() {
     final Map<String, dynamic> data = {};
 
-    if (icon != null) {
+    if (sfSymbolName != null) {
+      data['type'] = 'icon';
+      data['iconName'] = sfSymbolName;
+    } else if (icon != null) {
       data['type'] = 'icon';
       data['iconCode'] = icon!.codePoint;
       data['iconFamily'] = icon!.fontFamily;
-      // Note: fontPackage handling depends on native font loader logic.
-      // Usually "CupertinoIcons" family string is sufficient.
     } else if (label != null) {
       data['type'] = 'text';
       data['label'] = label;
@@ -42,6 +53,10 @@ class AdaptiveCupertinoAction {
     if (isDestructive) {
       data['isDestructive'] = true;
     }
+
+    // Pass sharing preference (native uses inverse 'hidesSharedBackground', but we pass positive logic here)
+    // The native factory maps this: sharesBackground -> !hidesSharedBackground
+    data['sharesBackground'] = sharesBackground;
 
     return data;
   }

@@ -296,24 +296,16 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
         position: ButtonPosition,
         index: Int
     ) -> UIBarButtonItem? {
-        // SECURITY: Validate icon code is within Unicode range
-        guard let iconCode = data["iconCode"] as? Int,
-              iconCode >= 0x0000,
-              iconCode <= 0x10FFFF else {
-            os_log(.error, log: Self.logger, "Invalid icon code: %{public}@", String(describing: data["iconCode"]))
-            return nil
-        }
-
         // Check if this button should be prominent (iOS 26 feature)
         let isProminent = data["prominent"] as? Bool ?? false
 
         // Check if this button shares background with adjacent buttons
         let sharesBackground = data["sharesBackground"] as? Bool ?? true
 
-        // Create SF Symbol image or use Unicode fallback
-        let button: UIBarButtonItem
+        var button: UIBarButtonItem?
+
+        // 1. Try SF Symbol first (PRIMARY)
         if let iconName = data["iconName"] as? String {
-            // Try SF Symbol first
             if let image = UIImage(systemName: iconName) {
                 button = UIBarButtonItem(
                     image: image,
@@ -322,38 +314,44 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
                     action: position == .leading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
                 )
             } else {
-                // Fallback to Unicode
-                button = createUnicodeButton(
-                    iconCode: iconCode,
-                    family: data["iconFamily"] as? String ?? "",
-                    position: position,
-                    isProminent: isProminent
-                )
+                os_log(.default, log: Self.logger, "SF Symbol '%{public}@' not found, falling back to Unicode", iconName)
             }
-        } else {
-            // Unicode-only button
+        }
+
+        // 2. Fallback to Unicode (SECONDARY)
+        if button == nil {
+            guard let iconCode = data["iconCode"] as? Int,
+                  iconCode >= 0x0000,
+                  iconCode <= 0x10FFFF else {
+                os_log(.error, log: Self.logger, "Missing or invalid iconCode for button at index %{public}d, and no valid SF Symbol provided", index)
+                return nil
+            }
+
+            let family = data["iconFamily"] as? String ?? ""
             button = createUnicodeButton(
                 iconCode: iconCode,
-                family: data["iconFamily"] as? String ?? "",
+                family: family,
                 position: position,
                 isProminent: isProminent
             )
         }
 
-        button.tag = index
+        guard let validButton = button else { return nil }
+
+        validButton.tag = index
 
         // Apply iOS 26 pill-grouping property
         // iOS 26 API: hidesSharedBackground (inverse logic)
         // sharesBackground = true  → hidesSharedBackground = false (group in pill)
         // sharesBackground = false → hidesSharedBackground = true (separate pill)
         if #available(iOS 26.0, *) {
-            button.hidesSharedBackground = !sharesBackground
+            validButton.hidesSharedBackground = !sharesBackground
             os_log(.debug, log: Self.logger,
                    "Button created: prominent=%{public}@, hidesSharedBackground=%{public}@",
                    isProminent ? "YES" : "NO", (!sharesBackground) ? "YES" : "NO")
         }
 
-        return button
+        return validButton
     }
 
     /// Create button with Unicode icon and proper font mapping

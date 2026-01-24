@@ -336,7 +336,8 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
     }
 
     final styleString = _getGlassStyleString();
-    final tintColorHex = widget.color != null ? _colorToHex(widget.color!) : null;
+    final tintColorHex =
+        widget.color != null ? _colorToHex(widget.color!) : null;
     final iconPlacementString = _getIconPlacementString();
 
     return SizedBox(
@@ -407,7 +408,8 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
     return '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
   }
 
-  Widget _buildIOSButton(BuildContext context, {required bool useFallbackStyle}) {
+  Widget _buildIOSButton(BuildContext context,
+      {required bool useFallbackStyle}) {
     // Determine actual style (fallback for glass styles on iOS <26)
     AdaptiveButtonStyle actualStyle = widget.style;
     if (useFallbackStyle &&
@@ -477,8 +479,8 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
           child: SizedBox(
             height: widget.minimumSize?.height ?? 44,
             child: DefaultTextStyle(
-            style: TextStyle(
-              color: widget.foregroundColor ?? CupertinoColors.white,
+              style: TextStyle(
+                color: widget.foregroundColor ?? CupertinoColors.white,
               ),
               child: buttonContent,
             ),
@@ -597,7 +599,7 @@ class _NativeGlassButtonState extends State<_NativeGlassButton> {
   @override
   Widget build(BuildContext context) {
     return UiKitView(
-      viewType: 'adaptive_cupertino_ios/glass_button',
+      viewType: 'adaptive_cupertino_ios/button',
       creationParams: {
         'title': widget.title,
         'style': widget.style,

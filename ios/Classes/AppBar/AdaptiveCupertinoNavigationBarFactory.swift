@@ -1,9 +1,11 @@
 import Flutter
 import UIKit
 
-/// Platform View Factory for Adaptive Cupertino AppBar
+/// Platform View Factory for Adaptive Cupertino Navigation Bar
+///
+/// Renamed from "AppBar" to match UIKit terminology (UINavigationBar).
 @available(iOS 15.0, *)
-class AdaptiveCupertinoAppBarFactory: NSObject, FlutterPlatformViewFactory {
+class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
 
     init(messenger: FlutterBinaryMessenger) {
@@ -16,7 +18,7 @@ class AdaptiveCupertinoAppBarFactory: NSObject, FlutterPlatformViewFactory {
         viewIdentifier viewId: Int64,
         arguments args: Any?
     ) -> FlutterPlatformView {
-        return AdaptiveCupertinoAppBarPlatformView(
+        return AdaptiveCupertinoNavigationBarPlatformView(
             frame: frame,
             viewIdentifier: viewId,
             arguments: args,
@@ -30,14 +32,22 @@ class AdaptiveCupertinoAppBarFactory: NSObject, FlutterPlatformViewFactory {
 }
 
 /// Platform View wrapper for UINavigationBar
+///
+/// CHAOS ENGINEERING:
+/// - iOS 26+ support with strict runtime checks
+/// - Liquid Glass fallback for iOS 18-25
+/// - Standard fallback for older versions
 @available(iOS 15.0, *)
-class AdaptiveCupertinoAppBarPlatformView: NSObject, FlutterPlatformView {
+class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView {
     private var _view: UIView
     private var navigationBar: UINavigationBar!
     private var navigationItem: UINavigationItem!
     private var messenger: FlutterBinaryMessenger
     private let channel: FlutterMethodChannel
     private var topPadding: CGFloat = 0
+    
+    // STRICT RUNTIME CHECK
+    private let isIOS26: Bool
 
     init(
         frame: CGRect,
@@ -51,6 +61,7 @@ class AdaptiveCupertinoAppBarPlatformView: NSObject, FlutterPlatformView {
             name: "adaptive_cupertino_ios/app_bar_\(viewId)",
             binaryMessenger: messenger
         )
+        self.isIOS26 = IOSVersionDetector.isIOS26OrNewer()
 
         // Parse top padding from Dart
         if let params = args as? [String: Any], let padding = params["topPadding"] as? NSNumber {
@@ -80,7 +91,9 @@ class AdaptiveCupertinoAppBarPlatformView: NSObject, FlutterPlatformView {
         navigationItem = UINavigationItem()
 
         // Setup appearance based on iOS version
-        if #available(iOS 18.0, *) {
+        if #available(iOS 26.0, *), isIOS26 {
+             setupIOS26Appearance()
+        } else if #available(iOS 18.0, *) {
             setupLiquidGlassAppearance()
         } else {
             setupStandardAppearance()
@@ -103,6 +116,36 @@ class AdaptiveCupertinoAppBarPlatformView: NSObject, FlutterPlatformView {
             navigationBar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
             navigationBar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
         ])
+    }
+    
+    /// iOS 26+ "Modern" Appearance
+    /// Uses system-defined pill grouping logic via Appearance APIs if available
+    @available(iOS 26.0, *)
+    private func setupIOS26Appearance() {
+        let appearance = UINavigationBarAppearance()
+        
+        // Fully transparent for native pill rendering
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = nil // No background effect, let items float
+        appearance.shadowColor = .clear
+        
+        // Modern typography
+        appearance.titleTextAttributes = [
+            .font: UIFont.systemFont(ofSize: 17, weight: .bold),
+            .foregroundColor: UIColor.label
+        ]
+        
+        appearance.largeTitleTextAttributes = [
+             .font: UIFont.systemFont(ofSize: 34, weight: .heavy),
+             .foregroundColor: UIColor.label
+        ]
+
+        navigationBar.standardAppearance = appearance
+        navigationBar.scrollEdgeAppearance = appearance
+        navigationBar.compactAppearance = appearance
+        navigationBar.prefersLargeTitles = true // iOS 26 prefers large titles by default
+        
+        print("📱 [NavBar] Using iOS 26+ modern appearance")
     }
 
     @available(iOS 18.0, *)
@@ -146,49 +189,32 @@ class AdaptiveCupertinoAppBarPlatformView: NSObject, FlutterPlatformView {
     }
 
     private func configureFromParams(_ params: [String: Any]) {
-        print("📱 [Swift AppBar] Received params: \(params)")
-
         // Set title
         if let title = params["title"] as? String {
             navigationItem.title = title
-            print("   ✅ Title set: \(title)")
         }
 
         // Set large title preference
         if let largeTitle = params["largeTitle"] as? Bool {
             navigationBar.prefersLargeTitles = largeTitle
-            print("   ✅ Large title: \(largeTitle)")
         }
 
         // Setup leading button
         if let leadingData = params["leading"] as? [String: Any] {
-            print("   🔍 Leading data: \(leadingData)")
             if let button = createBarButtonItem(from: leadingData, isLeading: true) {
                 navigationItem.leftBarButtonItem = button
-                print("   ✅ Leading button created")
-            } else {
-                print("   ❌ Leading button creation failed")
             }
-        } else {
-            print("   ⚠️ No leading data")
         }
 
         // Setup trailing buttons
         if let trailingArray = params["trailing"] as? [[String: Any]] {
-            print("   🔍 Trailing array: \(trailingArray)")
             var buttons: [UIBarButtonItem] = []
             for (index, buttonData) in trailingArray.enumerated() {
                 if let button = createBarButtonItem(from: buttonData, isLeading: false, index: index) {
                     buttons.append(button)
-                    print("   ✅ Trailing button \(index) created")
-                } else {
-                    print("   ❌ Trailing button \(index) failed")
                 }
             }
             navigationItem.rightBarButtonItems = buttons
-            print("   ✅ Total trailing buttons: \(buttons.count)")
-        } else {
-            print("   ⚠️ No trailing data")
         }
     }
 

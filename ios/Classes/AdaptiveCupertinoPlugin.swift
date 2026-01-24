@@ -23,25 +23,27 @@ public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
             withId: "adaptive_cupertino_ios/tab_bar"
         )
 
-        // AppBar PlatformView (iOS 18-25 UINavigationBar)
-        let appBarFactory = AdaptiveCupertinoAppBarFactory(messenger: registrar.messenger())
+        // NavigationBar PlatformView (formerly AppBar)
+        // Matches UIKit naming (UINavigationBar)
+        let navBarFactory = AdaptiveCupertinoNavigationBarFactory(messenger: registrar.messenger())
         registrar.register(
-            appBarFactory,
-            withId: "adaptive_cupertino_ios/app_bar"
+            navBarFactory,
+            withId: "adaptive_cupertino_ios/navigation_bar"
         )
 
-        // Toolbar PlatformView (iOS 26+ native UIToolbar with pill-shaped buttons)
+        // Toolbar PlatformView (iOS 26+ native UIToolbar)
         let toolbarFactory = AdaptiveCupertinoToolbarFactory(messenger: registrar.messenger())
         registrar.register(
             toolbarFactory,
             withId: "adaptive_cupertino_ios/toolbar"
         )
 
-        // Glass Button PlatformView
-        let glassButtonFactory = AdaptiveCupertinoGlassButtonFactory(messenger: registrar.messenger())
+        // Button PlatformView (formerly GlassButton)
+        // Standardized naming
+        let buttonFactory = AdaptiveCupertinoButtonFactory(messenger: registrar.messenger())
         registrar.register(
-            glassButtonFactory,
-            withId: "adaptive_cupertino_ios/glass_button"
+            buttonFactory,
+            withId: "adaptive_cupertino_ios/button"
         )
     }
 
