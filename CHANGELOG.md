@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-24
+
+### Added
+- **Native Toolbar Support** (iOS 26+)
+  - `AdaptiveCupertinoToolbarFactory`: Native `UIToolbar` implementation with pill-shaped button grouping.
+  - Automatic layout switcher and action grouping support.
+- **Native Navigation Bar Support** (iOS 18+)
+  - `AdaptiveCupertinoNavigationBarFactory`: Native `UINavigationBar` with Liquid Glass effect.
+  - Improved large title and transparency handling.
+- **SF Symbol Serialization**
+  - Added support for `sfSymbolName` (mapped to `iconName` in native).
+  - Native factories now prioritize SF Symbols over Unicode, allowing significantly smaller payload sizes.
+- **Core Refactoring**
+  - Rewrote native factory logic to be more resilient and crash-proof.
+  - Added structured logging for native view creation.
+
 ## [0.2.1] - 2024-01-21
 
 ### Added

@@ -1,6 +1,6 @@
 name: adaptive_cupertino_ios
 description: Native iOS Cupertino widgets with adaptive platform support. Provides iOS 18+ Liquid Glass TabBar/AppBar and iOS 26+ Glass Buttons with automatic fallback.
-version: 0.2.1
+version: 0.3.0
 homepage: https://github.com/alper/adaptive_cupertino_ios
 repository: https://github.com/alper/adaptive_cupertino_ios
 issue_tracker: https://github.com/alper/adaptive_cupertino_ios/issues
