@@ -139,20 +139,33 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         _view.backgroundColor = .clear
         _view.isOpaque = false
 
-        // 2. Add CUSTOM "Liquid Glass" background (gradient-masked blur)
-        // This is the key to true "liquid glass" with fading edges
-        let liquidGlass = LiquidGlassBackgroundView()
-        liquidGlass.translatesAutoresizingMaskIntoConstraints = false
-        _view.addSubview(liquidGlass)
-        
-        NSLayoutConstraint.activate([
-            liquidGlass.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-            liquidGlass.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            liquidGlass.topAnchor.constraint(equalTo: _view.topAnchor),
-            liquidGlass.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
-        ])
+        // Parse enableLiquidGlass parameter (default: true)
+        let enableLiquidGlass: Bool
+        if let params = args as? [String: Any], let enabled = params["enableLiquidGlass"] as? Bool {
+            enableLiquidGlass = enabled
+        } else {
+            enableLiquidGlass = true // Default
+        }
 
-        // 3. Configure iOS 26 native appearance (make toolbar TRANSPARENT - liquid glass is behind it)
+        // 2. Conditionally add LiquidGlass background
+        if enableLiquidGlass {
+            let liquidGlass = LiquidGlassBackgroundView()
+            liquidGlass.translatesAutoresizingMaskIntoConstraints = false
+            _view.addSubview(liquidGlass)
+            
+            NSLayoutConstraint.activate([
+                liquidGlass.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+                liquidGlass.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+                liquidGlass.topAnchor.constraint(equalTo: _view.topAnchor),
+                liquidGlass.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+            ])
+            
+            os_log(.debug, log: Self.logger, "LiquidGlass background enabled")
+        } else {
+            os_log(.debug, log: Self.logger, "LiquidGlass background disabled - toolbar is transparent")
+        }
+
+        // 3. Configure iOS 26 native appearance (toolbar always transparent)
         configureToolbarAppearance()
 
         // Parse and setup toolbar items from Dart
@@ -162,10 +175,10 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             os_log(OSLogType.default, log: Self.logger, "No parameters provided for toolbar configuration")
         }
 
-        // Add toolbar to container (on top of liquid glass)
+        // Add toolbar to container (on top of liquid glass if enabled)
         _view.addSubview(toolbar)
 
-        // Pin toolbar to Safe Area for content, liquid glass handles full bleed
+        // Pin toolbar to Safe Area for content
         NSLayoutConstraint.activate([
             toolbar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
@@ -173,7 +186,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             toolbar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
         ])
 
-        os_log(.info, log: Self.logger, "Native UIToolbar setup completed with custom LiquidGlass background")
+        os_log(.info, log: Self.logger, "Native UIToolbar setup completed (liquidGlass: %{public}@)", enableLiquidGlass ? "enabled" : "disabled")
     }
 
     /// Custom Liquid Glass Background View with gradient-masked blur
@@ -313,17 +326,37 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     private func configureToolbarItems(from params: [String: Any]) {
         os_log(.debug, log: Self.logger, "Configuring toolbar items: %{public}@", String(describing: params))
 
-        // Validate and extract title (SECURITY: Sanitize string input)
+        var toolbarItems: [UIBarButtonItem] = []
+        
+        // 1. Extract and sanitize title (may be nil)
+        var titleText: String? = nil
         if let title = params["title"] as? String, !title.isEmpty {
-            let sanitizedTitle = sanitizeString(title, maxLength: 100)
-            os_log(.debug, log: Self.logger, "Title: %{public}@", sanitizedTitle)
-            // Note: UIToolbar doesn't have a title property by default
-            // We'll add it as a centered text button if needed
+            titleText = sanitizeString(title, maxLength: 100)
+            os_log(.debug, log: Self.logger, "Title: %{public}@", titleText ?? "")
+        }
+        
+        // Check if using plain title style (no pill/bubble)
+        let usePlainTitle = (params["usePlainTitle"] as? Bool) ?? true
+        
+        // Parse optional title color (ARGB integer from Flutter)
+        // nil = use adaptive .label color
+        var titleColor: UIColor? = nil
+        if let colorValue = params["titleColor"] as? Int, colorValue >= 0 {
+            titleColor = UIColor(argb: colorValue)
+            
+            // CHAOS WARNING: Zero-alpha color would be invisible
+            let alpha = (colorValue >> 24) & 0xFF
+            if alpha == 0 {
+                os_log(.default, log: Self.logger, "Warning: titleColor has zero alpha (invisible)")
+            }
+            
+            os_log(.debug, log: Self.logger, "Custom title color: 0x%{public}08X (alpha: %{public}d)", colorValue, alpha)
+        } else if let colorValue = params["titleColor"] as? Int {
+            // Negative value provided - log and use default
+            os_log(.default, log: Self.logger, "Invalid negative color value: %{public}d, using default", colorValue)
         }
 
-        var toolbarItems: [UIBarButtonItem] = []
-
-        // Setup leading button (LEFT side)
+        // 2. Setup leading button (LEFT side)
         if let leadingData = params["leading"] as? [String: Any] {
             if let leadingButton = createBarButtonItem(from: leadingData, position: .leading) {
                 toolbarItems.append(leadingButton)
@@ -331,10 +364,20 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             }
         }
 
-        // Add flexible space to push trailing buttons to the right
+        // 3. Add flexible space (left side of title or between leading/trailing)
         toolbarItems.append(UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil))
+        
+        // 4. Add centered title if provided AND using pill style (not plain)
+        // Plain title is added as overlay label outside of toolbar items
+        if let title = titleText, !usePlainTitle {
+            let titleItem = createTitleBarButtonItem(title: title, color: titleColor)
+            toolbarItems.append(titleItem)
+            
+            // Add another flexible space (right side of title) for centering
+            toolbarItems.append(UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil))
+        }
 
-        // Setup trailing buttons (RIGHT side)
+        // 5. Setup trailing buttons (RIGHT side)
         if let trailingArray = params["trailing"] as? [[String: Any]] {
             os_log(.debug, log: Self.logger, "Processing %{public}d trailing buttons", trailingArray.count)
 
@@ -355,7 +398,14 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         // Apply items to toolbar
         if #available(iOS 26.0, *), let toolbar = self.toolbar {
             toolbar.items = toolbarItems
-            os_log(.info, log: Self.logger, "Toolbar items set: %{public}d total", toolbarItems.count)
+            
+            // 6. Add plain title as overlay label (if usePlainTitle)
+            if let title = titleText, usePlainTitle {
+                addPlainTitleOverlay(title: title, color: titleColor, to: toolbar)
+            }
+            
+            os_log(.info, log: Self.logger, "Toolbar items set: %{public}d total (title: %{public}@, plainStyle: %{public}@)", 
+                   toolbarItems.count, titleText != nil ? "yes" : "no", usePlainTitle ? "yes" : "no")
         } else if let _ = self.navigationBar, let navItem = self.navigationItem {
             // Fallback for iOS 18-25: Map to NavigationBar
             // Filter out flexible space items (they're system items, not custom buttons)
@@ -390,6 +440,90 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             os_log(OSLogType.default, log: Self.logger, "Unknown button type: %{public}@", type)
             return nil
         }
+    }
+
+    /// Create centered title label as UIBarButtonItem
+    /// Supports all layout scenarios: title-only, title+leading, title+trailing, title+leading+trailing
+    /// CHAOS RESISTANT: Handles empty strings, very long strings, special characters
+    private func createTitleBarButtonItem(title: String, color: UIColor? = nil) -> UIBarButtonItem {
+        // EDGE CASE: Empty string after sanitization
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            os_log(.default, log: Self.logger, "Empty title provided, creating placeholder")
+            return UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
+        }
+        
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.textAlignment = .center
+        
+        // Use system navigation title style
+        titleLabel.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        titleLabel.textColor = color ?? .label // Custom color or adaptive default
+        
+        // RESILIENCE: Handle long titles gracefully
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.numberOfLines = 1
+        
+        // Handle Dynamic Type
+        titleLabel.adjustsFontForContentSizeCategory = true
+        
+        // Allow flexible width for centering between flexible spaces
+        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        
+        // Create bar button item with custom view
+        let barButtonItem = UIBarButtonItem(customView: titleLabel)
+        
+        // Disable user interaction (title is not tappable)
+        barButtonItem.isEnabled = false
+        titleLabel.isUserInteractionEnabled = false
+        
+        os_log(.debug, log: Self.logger, "Title bar button created: %{public}@ (length: %{public}d)", 
+               title, title.count)
+        
+        return barButtonItem
+    }
+
+    /// Add plain text title as overlay label (no pill/bubble)
+    /// This bypasses UIToolbar's automatic pill styling by adding the label directly to the toolbar view
+    /// Follows Apple HIG recommendation for plain text titles
+    private func addPlainTitleOverlay(title: String, color: UIColor? = nil, to toolbar: UIToolbar) {
+        // EDGE CASE: Empty string
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            os_log(.default, log: Self.logger, "Empty title, skipping overlay")
+            return
+        }
+        
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.textAlignment = .center
+        titleLabel.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        titleLabel.textColor = color ?? .label // Custom color or adaptive default
+        titleLabel.backgroundColor = .clear // No background = no pill
+        
+        // RESILIENCE: Handle long titles
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.numberOfLines = 1
+        
+        // Dynamic Type support
+        titleLabel.adjustsFontForContentSizeCategory = true
+        
+        // Not interactive
+        titleLabel.isUserInteractionEnabled = false
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        toolbar.addSubview(titleLabel)
+        
+        // Center the label in the toolbar
+        NSLayoutConstraint.activate([
+            titleLabel.centerXAnchor.constraint(equalTo: toolbar.centerXAnchor),
+            titleLabel.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+            // Limit width to avoid overlapping buttons (leave margin for buttons)
+            titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: toolbar.leadingAnchor, constant: 80),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: toolbar.trailingAnchor, constant: -80)
+        ])
+        
+        os_log(.debug, log: Self.logger, "Plain title overlay added: %{public}@", title)
     }
 
     /// Create icon-based button with validation
@@ -644,5 +778,18 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     deinit {
         channel.setMethodCallHandler(nil)
         os_log(.info, log: Self.logger, "Toolbar view disposed (ID: %{public}lld)", viewId)
+    }
+}
+
+// MARK: - UIColor ARGB Extension
+
+extension UIColor {
+    /// Initialize UIColor from ARGB integer (Flutter Color.value format)
+    convenience init(argb: Int) {
+        let alpha = CGFloat((argb >> 24) & 0xFF) / 255.0
+        let red   = CGFloat((argb >> 16) & 0xFF) / 255.0
+        let green = CGFloat((argb >> 8) & 0xFF) / 255.0
+        let blue  = CGFloat(argb & 0xFF) / 255.0
+        self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
 }

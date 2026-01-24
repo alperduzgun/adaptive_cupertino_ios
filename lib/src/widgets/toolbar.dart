@@ -34,6 +34,22 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
   /// Height of the toolbar (standard is 44.0).
   final double height;
 
+  /// Enable/disable the custom LiquidGlass background effect.
+  /// When false, toolbar has no background (completely transparent).
+  /// Default: true
+  final bool enableLiquidGlass;
+
+  /// Use plain text title (no pill/bubble background).
+  /// When true: Title appears as plain text (recommended by Apple HIG)
+  /// When false: Title appears in iOS 26 glass pill style
+  /// Default: true
+  final bool usePlainTitle;
+
+  /// Custom color for the title text.
+  /// When null: Uses system adaptive color (black in light mode, white in dark mode)
+  /// Default: null (adaptive)
+  final Color? titleColor;
+
   const AdaptiveCupertinoToolbar({
     Key? key,
     this.title,
@@ -42,7 +58,18 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
     this.trailing,
     this.trailingActions,
     this.height = 44.0,
-  }) : super(key: key);
+    this.enableLiquidGlass = true,
+    this.usePlainTitle = true,
+    this.titleColor,
+  })  : assert(
+          title == null || title.length <= 100,
+          'Title must be 100 characters or less for optimal display',
+        ),
+        assert(
+          height >= 44.0 && height <= 200.0,
+          'Height must be between 44.0 and 200.0',
+        ),
+        super(key: key);
 
   @override
   State<AdaptiveCupertinoToolbar> createState() =>
@@ -219,6 +246,9 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
         creationParams: {
           'title': widget.title,
           'topPadding': MediaQuery.of(context).padding.top,
+          'enableLiquidGlass': widget.enableLiquidGlass,
+          'usePlainTitle': widget.usePlainTitle,
+          if (widget.titleColor != null) 'titleColor': widget.titleColor!.value,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
         },
