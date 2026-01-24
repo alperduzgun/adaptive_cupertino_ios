@@ -213,18 +213,7 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
 
     return Container(
       height: 44.0 + MediaQuery.of(context).padding.top,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            CupertinoColors.systemBackground
-                .resolveFrom(context)
-                .withAlpha(220),
-            CupertinoColors.systemBackground.resolveFrom(context).withAlpha(0),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
+      // Note: No decoration here - native LiquidGlassBackgroundView handles the blur & gradient
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/toolbar',
         creationParams: {

@@ -59,7 +59,7 @@ class AdaptiveCupertinoToolbarFactory: NSObject, FlutterPlatformViewFactory {
 /// - Self-healing: Invalid state resets to safe defaults
 /// - No silent failures: All errors logged
 @available(iOS 15.0, *)
-class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
+class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToolbarDelegate {
 
     // MARK: - Properties
     private var _view: UIView
@@ -83,35 +83,24 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
         arguments args: Any?,
         binaryMessenger messenger: FlutterBinaryMessenger
     ) {
-        self._view = UIView(frame: frame)
         self.messenger = messenger
-        self.viewId = viewId
+        self._view = UIView(frame: frame)
         self.channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios/toolbar_\(viewId)",
             binaryMessenger: messenger
         )
 
-        // Parse top padding from Dart for SafeArea alignment
         if let params = args as? [String: Any], let padding = params["topPadding"] as? NSNumber {
             self.topPadding = CGFloat(truncating: padding)
         }
-
+        
+        self.viewId = viewId
         // Detect iOS 26 for native toolbar vs fallback
         self.isIOS26 = IOSVersionDetector.isIOS26OrNewer()
 
         super.init()
 
-        os_log(.info, log: Self.logger, "Toolbar view created, iOS 26: %{public}@", isIOS26 ? "YES" : "NO")
-
-        // Setup appropriate UI component
-        if isIOS26 {
-            setupNativeToolbar(arguments: args)
-        } else {
-            // Graceful degradation: Use NavigationBar for iOS 18-25
-            os_log(.info, log: Self.logger, "Using NavigationBar fallback for iOS <26")
-            setupFallbackNavigationBar(arguments: args)
-        }
-
+        setupNativeToolbar(arguments: args)
         setupMethodChannel()
     }
 
@@ -119,7 +108,13 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
         return _view
     }
 
-    // MARK: - iOS 26 Native UIToolbar Setup
+    // MARK: - UIToolbarDelegate
+    
+    /// Tell the system this toolbar is attached to the top of the screen
+    /// This triggers the automatic status bar blur extension
+    func position(for bar: UIBarPositioning) -> UIBarPosition {
+        return .topAttached
+    }
 
     /// Setup native iOS 26 UIToolbar with automatic pill-shaped button grouping
     /// NATIVE BEHAVIOR: iOS 26 SDK automatically groups buttons into pills
@@ -136,6 +131,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
         }
 
         self.toolbar = toolbar
+        toolbar.delegate = self // Set delegate for position(for:)
         toolbar.backgroundColor = .clear
         toolbar.translatesAutoresizingMaskIntoConstraints = false
 
@@ -143,7 +139,20 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
         _view.backgroundColor = .clear
         _view.isOpaque = false
 
-        // 2. Configure iOS 26 native appearance (automatic pill-shaped grouping)
+        // 2. Add CUSTOM "Liquid Glass" background (gradient-masked blur)
+        // This is the key to true "liquid glass" with fading edges
+        let liquidGlass = LiquidGlassBackgroundView()
+        liquidGlass.translatesAutoresizingMaskIntoConstraints = false
+        _view.addSubview(liquidGlass)
+        
+        NSLayoutConstraint.activate([
+            liquidGlass.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+            liquidGlass.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+            liquidGlass.topAnchor.constraint(equalTo: _view.topAnchor),
+            liquidGlass.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+        ])
+
+        // 3. Configure iOS 26 native appearance (make toolbar TRANSPARENT - liquid glass is behind it)
         configureToolbarAppearance()
 
         // Parse and setup toolbar items from Dart
@@ -153,55 +162,149 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView {
             os_log(OSLogType.default, log: Self.logger, "No parameters provided for toolbar configuration")
         }
 
-        // Add to container
+        // Add toolbar to container (on top of liquid glass)
         _view.addSubview(toolbar)
 
-        // Auto layout constraints: Pin to topPadding to stay within SafeArea
+        // Pin toolbar to Safe Area for content, liquid glass handles full bleed
         NSLayoutConstraint.activate([
             toolbar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            toolbar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
+            toolbar.topAnchor.constraint(equalTo: _view.safeAreaLayoutGuide.topAnchor),
             toolbar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
         ])
 
-        os_log(.info, log: Self.logger, "Native UIToolbar setup completed with topPadding: %{public}.2f", topPadding)
+        os_log(.info, log: Self.logger, "Native UIToolbar setup completed with custom LiquidGlass background")
     }
 
-    /// Configure iOS 26 UIToolbarAppearance with native Liquid Glass
-    /// NATIVE BEHAVIOR: Uses iOS 26 SDK's default pill-shaped grouping
+    /// Custom Liquid Glass Background View with gradient-masked blur
+    /// This provides the true "fading blur" effect at the bottom edge
+    /// Enhanced with: Inner glow, Dark mode support, White tint overlay
+    class LiquidGlassBackgroundView: UIView {
+        private let blurView: UIVisualEffectView
+        private let gradientMask = CAGradientLayer()
+        private let whiteTintView = UIView() // Milky overlay
+        private let innerGlowView = UIView() // Bottom edge highlight
+        
+        override init(frame: CGRect) {
+            // Adaptive blur style based on current trait collection
+            let blurStyle: UIBlurEffect.Style = .systemUltraThinMaterial
+            blurView = UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
+            super.init(frame: frame)
+            setupLiquidGlass()
+        }
+        
+        required init?(coder: NSCoder) {
+            let blurStyle: UIBlurEffect.Style = .systemUltraThinMaterial
+            blurView = UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
+            super.init(coder: coder)
+            setupLiquidGlass()
+        }
+        
+        private func setupLiquidGlass() {
+            backgroundColor = .clear
+            
+            // 1. Add blur view (base layer)
+            blurView.translatesAutoresizingMaskIntoConstraints = false
+            blurView.alpha = 0.4 // Reduced blur intensity (40%)
+            addSubview(blurView)
+            
+            NSLayoutConstraint.activate([
+                blurView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                blurView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                blurView.topAnchor.constraint(equalTo: topAnchor),
+                blurView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            ])
+            
+            // 2. Add subtle white tint for "milky" appearance
+            whiteTintView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+            whiteTintView.translatesAutoresizingMaskIntoConstraints = false
+            blurView.contentView.addSubview(whiteTintView)
+            
+            NSLayoutConstraint.activate([
+                whiteTintView.leadingAnchor.constraint(equalTo: blurView.contentView.leadingAnchor),
+                whiteTintView.trailingAnchor.constraint(equalTo: blurView.contentView.trailingAnchor),
+                whiteTintView.topAnchor.constraint(equalTo: blurView.contentView.topAnchor),
+                whiteTintView.bottomAnchor.constraint(equalTo: blurView.contentView.bottomAnchor)
+            ])
+            
+            // 3. Add inner glow (bottom edge highlight for depth)
+            innerGlowView.backgroundColor = UIColor.white.withAlphaComponent(0.15)
+            innerGlowView.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(innerGlowView)
+            
+            NSLayoutConstraint.activate([
+                innerGlowView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                innerGlowView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                innerGlowView.bottomAnchor.constraint(equalTo: bottomAnchor),
+                innerGlowView.heightAnchor.constraint(equalToConstant: 0.5) // Hairline
+            ])
+            
+            // 4. Setup gradient mask for fading effect
+            gradientMask.colors = [
+                UIColor.black.cgColor,  // Top: Fully visible
+                UIColor.black.cgColor,  // Keep visible through most of the bar
+                UIColor.clear.cgColor   // Bottom: Fade to transparent
+            ]
+            gradientMask.locations = [0.0, 0.8, 1.0] // Blur covers 80%, fades in last 20%
+            gradientMask.startPoint = CGPoint(x: 0.5, y: 0.0)
+            gradientMask.endPoint = CGPoint(x: 0.5, y: 1.0)
+            
+            layer.mask = gradientMask
+        }
+        
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            gradientMask.frame = bounds
+        }
+        
+        // Update blur style when trait collection changes (light/dark mode)
+        override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+            super.traitCollectionDidChange(previousTraitCollection)
+            
+            if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+                updateForCurrentAppearance()
+            }
+        }
+        
+        private func updateForCurrentAppearance() {
+            let isDark = traitCollection.userInterfaceStyle == .dark
+            
+            // Adjust white tint for dark mode
+            whiteTintView.backgroundColor = isDark 
+                ? UIColor.white.withAlphaComponent(0.04)  // Less tint in dark mode
+                : UIColor.white.withAlphaComponent(0.08)  // Normal tint in light mode
+            
+            // Adjust inner glow for dark mode
+            innerGlowView.backgroundColor = isDark
+                ? UIColor.white.withAlphaComponent(0.08)  // Subtle in dark mode
+                : UIColor.white.withAlphaComponent(0.15)  // More visible in light mode
+        }
+    }
+
+    /// Configure UIToolbar to be FULLY TRANSPARENT (liquid glass is behind)
     private func configureToolbarAppearance() {
         guard let toolbar = self.toolbar else { return }
+        guard #available(iOS 26.0, *) else { return }
 
-        // iOS 26+ only configuration
-        guard #available(iOS 26.0, *) else {
-            os_log(.error, log: Self.logger, "configureToolbarAppearance called on iOS <26")
-            return
-        }
-
-        // Create native iOS 26 appearance
         let appearance = UIToolbarAppearance()
-
-        // Use fully transparent background with Ultra Thin blur
+        
+        // Make toolbar completely transparent - liquid glass shows through
         appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-        appearance.backgroundColor = UIColor.white.withAlphaComponent(0.02)
+        appearance.backgroundColor = .clear
+        appearance.backgroundEffect = nil // No blur here - custom view handles it
+        appearance.shadowColor = .clear // No separator line
 
-        // Configure prominent button appearance (iOS 26 API)
+        // Configure prominent button appearance
         let prominentButton = appearance.prominentButtonAppearance
         prominentButton.normal.titleTextAttributes = [
             .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
             .foregroundColor: UIColor.label
         ]
 
-        // Apply appearance
         toolbar.standardAppearance = appearance
         toolbar.compactAppearance = appearance
         toolbar.scrollEdgeAppearance = appearance
-
-        // Enable translucency
         toolbar.isTranslucent = true
-
-        os_log(.debug, log: Self.logger, "Toolbar appearance configured as fully transparent")
     }
 
     /// Configure toolbar items from Dart parameters with validation

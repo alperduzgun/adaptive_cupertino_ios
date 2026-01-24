@@ -37,8 +37,14 @@ class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactor
 /// - iOS 26+ support with strict runtime checks
 /// - Liquid Glass fallback for iOS 18-25
 /// - Standard fallback for older versions
+/// Platform View wrapper for UINavigationBar
+///
+/// CHAOS ENGINEERING:
+/// - iOS 26+ support with strict runtime checks
+/// - Liquid Glass fallback for iOS 18-25
+/// - Standard fallback for older versions
 @available(iOS 15.0, *)
-class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView {
+class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView, UINavigationBarDelegate {
     private var _view: UIView
     private var navigationBar: UINavigationBar!
     private var navigationItem: UINavigationItem!
@@ -78,8 +84,17 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView 
         return _view
     }
 
+    // MARK: - UINavigationBarDelegate
+    
+    /// Tell the system this bar is attached to the top of the screen
+    /// This triggers the automatic status bar blur extension "Liquid Glass logic"
+    func position(for bar: UIBarPositioning) -> UIBarPosition {
+        return .topAttached
+    }
+
     private func setupNavigationBar(arguments args: Any?) {
         navigationBar = UINavigationBar()
+        navigationBar.delegate = self // Set delegate for position(for:)
         navigationBar.backgroundColor = .clear
         navigationBar.translatesAutoresizingMaskIntoConstraints = false
 
@@ -87,17 +102,14 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView 
         _view.backgroundColor = .clear
         _view.isOpaque = false
 
-        // 2. Create navigation item
+        // 2. Add full-bleed background blur (Liquid Glass Effect)
+        setupBackgroundBlur()
+
+        // 3. Create navigation item
         navigationItem = UINavigationItem()
 
         // Setup appearance based on iOS version
-        if #available(iOS 26.0, *), isIOS26 {
-             setupIOS26Appearance()
-        } else if #available(iOS 18.0, *) {
-            setupLiquidGlassAppearance()
-        } else {
-            setupStandardAppearance()
-        }
+        setupTransparentAppearance()
 
         // Parse configuration from arguments
         if let params = args as? [String: Any] {
@@ -109,76 +121,95 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView 
         // Add to container view
         _view.addSubview(navigationBar)
 
-        // Auto layout constraints: Pin to topPadding to stay within SafeArea
+        // Auto layout constraints: Pin to SAFE AREA
         NSLayoutConstraint.activate([
             navigationBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
             navigationBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            navigationBar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
+            navigationBar.topAnchor.constraint(equalTo: _view.safeAreaLayoutGuide.topAnchor), // Pin to Safe Area for content safety
             navigationBar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
         ])
     }
+
+    private func setupBackgroundBlur() {
+        // Force .light style to avoid gray system adaptation
+        let blurEffect = UIBlurEffect(style: .light)
+        let blurView = UIVisualEffectView(effect: blurEffect)
+        blurView.translatesAutoresizingMaskIntoConstraints = false
+        blurView.backgroundColor = .clear
+
+        // Add a "Milky" white tint layer to enhance Liquid Glass effect
+        let tintView = UIView()
+        tintView.backgroundColor = UIColor.white.withAlphaComponent(0.15)
+        tintView.translatesAutoresizingMaskIntoConstraints = false
+        blurView.contentView.addSubview(tintView)
+
+        // Pin tint view
+        NSLayoutConstraint.activate([
+            tintView.leadingAnchor.constraint(equalTo: blurView.contentView.leadingAnchor),
+            tintView.trailingAnchor.constraint(equalTo: blurView.contentView.trailingAnchor),
+            tintView.topAnchor.constraint(equalTo: blurView.contentView.topAnchor),
+            tintView.bottomAnchor.constraint(equalTo: blurView.contentView.bottomAnchor)
+        ])
+
+        _view.addSubview(blurView)
+
+        // Pin to ABSOLUTE edges
+        NSLayoutConstraint.activate([
+            blurView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+            blurView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+            blurView.topAnchor.constraint(equalTo: _view.topAnchor),
+            blurView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+        ])
+        
+        // Add a "Glass Edge" separator - a very thin, subtle white line at the bottom
+        // This gives it a "cut glass" look instead of just ending.
+        let edgeLine = UIView()
+        edgeLine.backgroundColor = UIColor.white.withAlphaComponent(0.3)
+        edgeLine.translatesAutoresizingMaskIntoConstraints = false
+        _view.addSubview(edgeLine)
+        
+        NSLayoutConstraint.activate([
+            edgeLine.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+            edgeLine.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+            edgeLine.bottomAnchor.constraint(equalTo: _view.bottomAnchor),
+            edgeLine.heightAnchor.constraint(equalToConstant: 0.5) // Hairline
+        ])
+    }
     
-    /// iOS 26+ "Modern" Appearance
-    /// Uses system-defined pill grouping logic via Appearance APIs if available
-    @available(iOS 26.0, *)
-    private func setupIOS26Appearance() {
+    /// Setup "iOS 26 Liquid Glass" Appearance
+    /// We make the bar transparent because the blur is handled by the backing view
+    private func setupTransparentAppearance() {
         let appearance = UINavigationBarAppearance()
         
-        // Fully transparent for native pill rendering
+        // "Liquid Glass" Configuration:
+        // Make the BAR itself transparent so the backing blur view shows through
         appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = nil // No background effect, let items float
+        appearance.backgroundColor = .clear // Transparent
+        appearance.backgroundEffect = nil // No internal blur (handled by setupBackgroundBlur)
+        
+        // Remove shadow for cleaner look
         appearance.shadowColor = .clear
         
         // Modern typography
         appearance.titleTextAttributes = [
-            .font: UIFont.systemFont(ofSize: 17, weight: .bold),
+            .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
             .foregroundColor: UIColor.label
         ]
         
         appearance.largeTitleTextAttributes = [
-             .font: UIFont.systemFont(ofSize: 34, weight: .heavy),
+             .font: UIFont.systemFont(ofSize: 34, weight: .bold),
              .foregroundColor: UIColor.label
         ]
 
         navigationBar.standardAppearance = appearance
         navigationBar.scrollEdgeAppearance = appearance
         navigationBar.compactAppearance = appearance
-        navigationBar.prefersLargeTitles = true // iOS 26 prefers large titles by default
         
-        print("📱 [NavBar] Using iOS 26+ modern appearance")
-    }
+        // iOS 26+ prefers large titles by default if flag is set
+        if #available(iOS 26.0, *), isIOS26 {
+             navigationBar.prefersLargeTitles = true
+        }
 
-    @available(iOS 18.0, *)
-    private func setupLiquidGlassAppearance() {
-        let appearance = UINavigationBarAppearance()
-
-        // Use fully transparent background configuration
-        appearance.configureWithTransparentBackground()
-        
-        // Add true Liquid Glass effect: Ultra Thin material for premium transparency
-        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-        appearance.backgroundColor = UIColor.white.withAlphaComponent(0.02) // Barely visible tint
-
-        // Remove shadow for cleaner look
-        appearance.shadowColor = .clear
-
-        // Title styling
-        appearance.titleTextAttributes = [
-            .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
-            .foregroundColor: UIColor.label
-        ]
-
-        // Large title styling
-        appearance.largeTitleTextAttributes = [
-            .font: UIFont.systemFont(ofSize: 34, weight: .bold),
-            .foregroundColor: UIColor.label
-        ]
-
-        navigationBar.standardAppearance = appearance
-        navigationBar.scrollEdgeAppearance = appearance
-        navigationBar.compactAppearance = appearance
-
-        // Enable translucency
         navigationBar.isTranslucent = true
     }
 
