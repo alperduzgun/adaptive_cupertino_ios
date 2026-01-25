@@ -780,16 +780,3 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         os_log(.info, log: Self.logger, "Toolbar view disposed (ID: %{public}lld)", viewId)
     }
 }
-
-// MARK: - UIColor ARGB Extension
-
-extension UIColor {
-    /// Initialize UIColor from ARGB integer (Flutter Color.value format)
-    convenience init(argb: Int) {
-        let alpha = CGFloat((argb >> 24) & 0xFF) / 255.0
-        let red   = CGFloat((argb >> 16) & 0xFF) / 255.0
-        let green = CGFloat((argb >> 8) & 0xFF) / 255.0
-        let blue  = CGFloat(argb & 0xFF) / 255.0
-        self.init(red: red, green: green, blue: blue, alpha: alpha)
-    }
-}

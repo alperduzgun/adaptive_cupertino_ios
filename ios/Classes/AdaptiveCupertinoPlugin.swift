@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import os.log
 
 @available(iOS 15.0, *)
 public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
@@ -44,6 +45,13 @@ public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
         registrar.register(
             buttonFactory,
             withId: "adaptive_cupertino_ios/button"
+        )
+
+        // SegmentedControl PlatformView
+        let segmentedFactory = AdaptiveCupertinoSegmentedControlFactory(messenger: registrar.messenger())
+        registrar.register(
+            segmentedFactory,
+            withId: "adaptive_cupertino_ios/segmented_control"
         )
     }
 

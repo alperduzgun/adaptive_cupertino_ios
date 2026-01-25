@@ -14,6 +14,7 @@ export 'src/widgets/app_bar.dart';
 export 'src/widgets/button.dart';
 export 'src/widgets/dialog.dart';
 export 'src/widgets/scaffold.dart';
+export 'src/widgets/segmented_control.dart';
 export 'src/widgets/tab_bar.dart';
 export 'src/widgets/toolbar.dart';
 
