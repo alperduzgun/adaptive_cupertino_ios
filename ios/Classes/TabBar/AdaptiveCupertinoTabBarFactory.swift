@@ -11,41 +11,38 @@ class TabBarContainerView: UIView {
     
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        
-        // When view is added to window and has valid bounds, complete layout and show
-        if window != nil && !hasCompletedInitialLayout && bounds.width > 0 {
-            hasCompletedInitialLayout = true
-            
-            // Force synchronous layout
-            CATransaction.flush()
-            tabBar?.sizeToFit()
-            tabBar?.setNeedsLayout()
-            tabBar?.layoutIfNeeded()
-            setNeedsLayout()
-            layoutIfNeeded()
-            
-            // Fade in after layout is complete
-            UIView.animate(withDuration: 0.15) { [weak self] in
-                self?.tabBar?.alpha = 1.0
-            }
-        }
+        completeInitialLayoutIfNeeded()
     }
     
     override func layoutSubviews() {
         super.layoutSubviews()
+        completeInitialLayoutIfNeeded()
+    }
+    
+    /// DRY: Single method for initial layout completion and fade-in
+    /// Called from both didMoveToWindow and layoutSubviews as a safety net
+    private func completeInitialLayoutIfNeeded() {
+        // Guard: Only run once, when in window with valid bounds
+        guard !hasCompletedInitialLayout,
+              window != nil,
+              bounds.width > 0 else { return }
         
-        // If we haven't shown yet and now have valid bounds, trigger show
-        if !hasCompletedInitialLayout && window != nil && bounds.width > 0 {
-            hasCompletedInitialLayout = true
-            
-            tabBar?.sizeToFit()
-            tabBar?.setNeedsLayout()
-            tabBar?.layoutIfNeeded()
-            
-            UIView.animate(withDuration: 0.15) { [weak self] in
-                self?.tabBar?.alpha = 1.0
-            }
+        hasCompletedInitialLayout = true
+        
+        // Force synchronous layout
+        CATransaction.flush()
+        tabBar?.sizeToFit()
+        tabBar?.setNeedsLayout()
+        tabBar?.layoutIfNeeded()
+        setNeedsLayout()
+        layoutIfNeeded()
+        
+        // Fade in after layout is complete
+        UIView.animate(withDuration: 0.15) { [weak self] in
+            self?.tabBar?.alpha = 1.0
         }
+        
+        print("✅ [TabBar-Container] Initial layout completed and faded in")
     }
 }
 
