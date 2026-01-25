@@ -58,9 +58,9 @@ class AdaptiveSwitch extends StatelessWidget {
         viewType: 'adaptive_cupertino_ios/switch',
         creationParams: {
           'isOn': value,
-          'activeColor': activeColor?.value,
-          'thumbColor': thumbColor?.value,
-          'trackColor': trackColor?.value,
+          'activeColor': activeColor?.toARGB32(),
+          'thumbColor': thumbColor?.toARGB32(),
+          'trackColor': trackColor?.toARGB32(),
           'enabled': onChanged != null,
         },
         creationParamsCodec: const StandardMessageCodec(),
@@ -86,18 +86,18 @@ class AdaptiveSwitch extends StatelessWidget {
       return CupertinoSwitch(
         value: value,
         onChanged: onChanged,
-        activeColor: activeColor,
+        activeTrackColor: activeColor,
         thumbColor: thumbColor,
-        trackColor: trackColor,
+        inactiveTrackColor: trackColor,
       );
     }
 
     // Material Fallback
-    return Switch(
+    return Switch.adaptive(
       value: value,
       onChanged: onChanged,
-      activeColor: activeColor,
-      activeTrackColor: activeColor?.withOpacity(0.5),
+      activeTrackColor: activeColor,
+      activeThumbColor: activeColor,
       inactiveThumbColor: thumbColor,
       inactiveTrackColor: trackColor,
     );

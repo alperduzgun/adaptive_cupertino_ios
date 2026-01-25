@@ -92,6 +92,13 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
         // 3. Enabled State
         nativeSwitch.isEnabled = (params["enabled"] as? Bool) ?? true
 
+        // 4. iOS 26 "Liquid Glass" specific enhancements
+        if #available(iOS 26.0, *) {
+             applyGlassDesign()
+        } else if IOSVersionDetector.isIOS26OrNewer() {
+             applyGlassDesign()
+        }
+
         _containerView.addSubview(nativeSwitch)
         
         // Center the switch in the container
@@ -102,7 +109,25 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
 
         nativeSwitch.addTarget(self, action: #selector(valueChanged), for: .valueChanged)
         
-        os_log(.info, log: Self.logger, "Switch initialized (ID: %{public}lld)", viewId)
+        os_log(.info, log: Self.logger, "Switch initialized with Liquid Glass (ID: %{public}lld)", viewId)
+    }
+
+    private func applyGlassDesign() {
+        // In iOS 26 "Liquid Glass", switches have a subtle backdrop blur when off
+        let glassEffect = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+        glassEffect.translatesAutoresizingMaskIntoConstraints = false
+        glassEffect.layer.cornerRadius = 16 // Match switch pill shape
+        glassEffect.clipsToBounds = true
+        glassEffect.isUserInteractionEnabled = false
+        
+        _containerView.insertSubview(glassEffect, belowSubview: nativeSwitch)
+        
+        NSLayoutConstraint.activate([
+            glassEffect.centerXAnchor.constraint(equalTo: nativeSwitch.centerXAnchor),
+            glassEffect.centerYAnchor.constraint(equalTo: nativeSwitch.centerYAnchor),
+            glassEffect.widthAnchor.constraint(equalTo: nativeSwitch.widthAnchor),
+            glassEffect.heightAnchor.constraint(equalTo: nativeSwitch.heightAnchor)
+        ])
     }
 
     @objc private func valueChanged() {

@@ -248,7 +248,8 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
           'topPadding': MediaQuery.of(context).padding.top,
           'enableLiquidGlass': widget.enableLiquidGlass,
           'usePlainTitle': widget.usePlainTitle,
-          if (widget.titleColor != null) 'titleColor': widget.titleColor!.value,
+          if (widget.titleColor != null)
+            'titleColor': widget.titleColor!.toARGB32(),
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
         },
