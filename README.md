@@ -116,10 +116,18 @@ AdaptiveCupertinoTabBar(
   items: items,
   currentIndex: index,
   minimizationFactor: _minimizationFactor,
+  elevation: 8.0, // Base elevation level (0.0 to 10.0)
 )
 ```
 
 > **Note:** The TabBar automatically handles timing edge cases where Flutter calls native code before iOS completes layout. A retry mechanism with observability logging ensures reliable initialization.
+
+### Adaptive Elevation & Smoothing
+
+The elevation system uses native iOS shadow APIs with non-linear power functions to ensure natural transitions:
+- **Sharpness Fix**: Shadow radius grows non-linearly (`pow^0.5`) to ensure a soft "puf" feel immediately upon appearance.
+- **Fluid Opacity**: Opacity follows a `pow^1.5` curve to start faint and gain intensity naturally as elevation increases.
+- **Performance**: High-frequency updates use an explicit `shadowPath` for zero-lag rendering.
 
 ### Native Button Configurations
 
@@ -178,11 +186,12 @@ The library utilizes a hybrid Flutter-Native bridge to ensure pixel-perfect rend
 
 ## Development Roadmap
 
-### Version 0.4.0 (Current)
+### Version 0.5.0 (Current)
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSegmentedControl` component.
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSwitch`.
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSlider` component.
 - [x] **Dynamic Structural Minimization**: Native scroll-aware TabBar transformations with `minimizationFactor` property.
+- [x] **Adaptive Elevation**: Automatic depth/shadow management for Liquid Glass layers with non-linear smoothing curves.
 - [ ] **Native Contextual Search**: Implementation of iOS 26+ native search tab transitions.
 - [ ] **Flexible Layout Spacers**: Enhanced horizontal distribution API for complex toolbar requirements.
 - [ ] **Adaptive Elevation**: Automatic depth/shadow management for Liquid Glass layers.
