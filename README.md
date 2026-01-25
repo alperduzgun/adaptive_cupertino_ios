@@ -127,14 +127,13 @@ The library utilizes a hybrid Flutter-Native bridge to ensure pixel-perfect rend
 
 ## Development Roadmap
 
-### Version 0.3.0 (Planned)
+### Version 0.3.1 (Current)
+- [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSegmentedControl` component.
+- [ ] **Native iOS 26 Controls**: Native-backed `AdaptiveSwitch` and `AdaptiveSlider` components.
 - [ ] **Dynamic Structural Minimization**: Native scroll-aware TabBar transformations for reduced footprint during content consumption.
 - [ ] **Native Contextual Search**: Implementation of iOS 26+ native search tab transitions.
 - [ ] **Flexible Layout Spacers**: Enhanced horizontal distribution API for complex toolbar requirements.
 - [ ] **Adaptive Elevation**: Automatic depth/shadow management for Liquid Glass layers.
-
-### Version 0.4.0 (In Research)
-- [ ] **Native iOS 26 Controls**: Native-backed `AdaptiveSwitch`, `AdaptiveSlider`, and `AdaptiveSegmentedControl` components.
 - [ ] **Immersive View Controllers**: Support for Liquid Glass modal presentations and sheet interactions.
 - [ ] **Enhanced Transitions**: Native cross-page Hero animations for glass elements.
 
