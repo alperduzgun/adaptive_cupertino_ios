@@ -1,32 +1,29 @@
 import 'package:adaptive_cupertino_ios/adaptive_cupertino_ios.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AdaptiveCupertinoTabBar', () {
     testWidgets('renders without crashing', (tester) async {
       await tester.pumpWidget(
-        CupertinoApp(
-          home: CupertinoPageScaffold(
-            child: Column(
-              children: [
-                const Expanded(child: Center(child: Text('Content'))),
-                AdaptiveCupertinoTabBar(
-                  items: const [
-                    AdaptiveCupertinoTabItem(
-                      label: 'Home',
-                      icon: CupertinoIcons.house,
-                    ),
-                    AdaptiveCupertinoTabItem(
-                      label: 'Profile',
-                      icon: CupertinoIcons.person,
-                    ),
-                  ],
-                  currentIndex: 0,
-                  onTap: (index) {},
+        MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: AdaptiveCupertinoTabBar(
+              items: const [
+                AdaptiveCupertinoTabItem(
+                  label: 'Home',
+                  icon: CupertinoIcons.house,
+                ),
+                AdaptiveCupertinoTabItem(
+                  label: 'Profile',
+                  icon: CupertinoIcons.person,
                 ),
               ],
+              currentIndex: 0,
+              onTap: (index) {},
             ),
+            body: const Center(child: Text('Content')),
           ),
         ),
       );
@@ -42,29 +39,25 @@ void main() {
       int? tappedIndex;
 
       await tester.pumpWidget(
-        CupertinoApp(
-          home: CupertinoPageScaffold(
-            child: Column(
-              children: [
-                const Expanded(child: Center(child: Text('Content'))),
-                AdaptiveCupertinoTabBar(
-                  items: const [
-                    AdaptiveCupertinoTabItem(
-                      label: 'Home',
-                      icon: CupertinoIcons.house,
-                    ),
-                    AdaptiveCupertinoTabItem(
-                      label: 'Profile',
-                      icon: CupertinoIcons.person,
-                    ),
-                  ],
-                  currentIndex: 0,
-                  onTap: (index) {
-                    tappedIndex = index;
-                  },
+        MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: AdaptiveCupertinoTabBar(
+              items: const [
+                AdaptiveCupertinoTabItem(
+                  label: 'Home',
+                  icon: CupertinoIcons.house,
+                ),
+                AdaptiveCupertinoTabItem(
+                  label: 'Profile',
+                  icon: CupertinoIcons.person,
                 ),
               ],
+              currentIndex: 0,
+              onTap: (index) {
+                tappedIndex = index;
+              },
             ),
+            body: const Center(child: Text('Content')),
           ),
         ),
       );
@@ -86,7 +79,8 @@ void main() {
       final map = item.toMap();
 
       expect(map['label'], 'Test');
-      expect(map['icon'], isA<String>());
+      expect(map['iconCode'], isA<int>());
+      expect(map['iconFamily'], isA<String>());
       expect(map['badge'], '5');
     });
   });

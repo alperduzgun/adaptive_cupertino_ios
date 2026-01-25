@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../platform/ios_version.dart';
@@ -85,6 +86,10 @@ class AdaptiveCupertinoTabBar extends StatefulWidget {
   /// Inactive color for unselected items (only used in fallback mode).
   final Color? inactiveColor;
 
+  /// The minimization factor (0.0 to 1.0) for dynamic structural transformations.
+  /// Only available on iOS 26+ native implementation.
+  final double minimizationFactor;
+
   const AdaptiveCupertinoTabBar({
     Key? key,
     required this.items,
@@ -93,6 +98,7 @@ class AdaptiveCupertinoTabBar extends StatefulWidget {
     this.backgroundColor,
     this.activeColor,
     this.inactiveColor,
+    this.minimizationFactor = 0.0,
   }) : super(key: key);
 
   @override
@@ -146,6 +152,10 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
 
     // Set initial selection
     _tabBarChannel!.invokeMethod('selectTab', {'index': widget.currentIndex});
+
+    // Set initial minimization factor
+    _tabBarChannel!.invokeMethod(
+        'setMinimizationFactor', {'factor': widget.minimizationFactor});
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
@@ -165,6 +175,13 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
     // Update selection if changed externally
     if (widget.currentIndex != oldWidget.currentIndex && _useNativeTabBar) {
       _tabBarChannel?.invokeMethod('selectTab', {'index': widget.currentIndex});
+    }
+
+    // Update minimization factor if changed
+    if (widget.minimizationFactor != oldWidget.minimizationFactor &&
+        _useNativeTabBar) {
+      _tabBarChannel?.invokeMethod(
+          'setMinimizationFactor', {'factor': widget.minimizationFactor});
     }
   }
 
@@ -193,6 +210,7 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
 
     return SizedBox(
       height: 83, // Standard tab bar height + safe area
+      width: double.infinity,
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/tab_bar',
         creationParams: {
@@ -211,7 +229,27 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
   }
 
   Widget _buildFallbackTabBar() {
-    return CupertinoTabBar(
+    final platform = Theme.of(context).platform;
+
+    if (platform == TargetPlatform.iOS) {
+      return CupertinoTabBar(
+        items: widget.items.map((item) {
+          return BottomNavigationBarItem(
+            icon: Icon(item.icon),
+            activeIcon: Icon(item.selectedIcon ?? item.icon),
+            label: item.label,
+          );
+        }).toList(),
+        currentIndex: widget.currentIndex,
+        onTap: widget.onTap,
+        backgroundColor: widget.backgroundColor,
+        activeColor: widget.activeColor ?? CupertinoColors.activeBlue,
+        inactiveColor: widget.inactiveColor ?? CupertinoColors.inactiveGray,
+      );
+    }
+
+    // Material Fallback
+    return BottomNavigationBar(
       items: widget.items.map((item) {
         return BottomNavigationBarItem(
           icon: Icon(item.icon),
@@ -222,8 +260,9 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
       currentIndex: widget.currentIndex,
       onTap: widget.onTap,
       backgroundColor: widget.backgroundColor,
-      activeColor: widget.activeColor ?? CupertinoColors.activeBlue,
-      inactiveColor: widget.inactiveColor ?? CupertinoColors.inactiveGray,
+      selectedItemColor: widget.activeColor,
+      unselectedItemColor: widget.inactiveColor,
+      type: BottomNavigationBarType.fixed,
     );
   }
 

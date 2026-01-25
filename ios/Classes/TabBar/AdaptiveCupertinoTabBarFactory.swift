@@ -1,6 +1,54 @@
 import Flutter
 import UIKit
 
+/// Custom container view that triggers layout pass after being added to window
+/// This fixes the initial label truncation issue by ensuring layout happens after
+/// the view has its correct frame from Flutter.
+@available(iOS 15.0, *)
+class TabBarContainerView: UIView {
+    var tabBar: UITabBar?
+    private var hasCompletedInitialLayout = false
+    
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        
+        // When view is added to window and has valid bounds, complete layout and show
+        if window != nil && !hasCompletedInitialLayout && bounds.width > 0 {
+            hasCompletedInitialLayout = true
+            
+            // Force synchronous layout
+            CATransaction.flush()
+            tabBar?.sizeToFit()
+            tabBar?.setNeedsLayout()
+            tabBar?.layoutIfNeeded()
+            setNeedsLayout()
+            layoutIfNeeded()
+            
+            // Fade in after layout is complete
+            UIView.animate(withDuration: 0.15) { [weak self] in
+                self?.tabBar?.alpha = 1.0
+            }
+        }
+    }
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        
+        // If we haven't shown yet and now have valid bounds, trigger show
+        if !hasCompletedInitialLayout && window != nil && bounds.width > 0 {
+            hasCompletedInitialLayout = true
+            
+            tabBar?.sizeToFit()
+            tabBar?.setNeedsLayout()
+            tabBar?.layoutIfNeeded()
+            
+            UIView.animate(withDuration: 0.15) { [weak self] in
+                self?.tabBar?.alpha = 1.0
+            }
+        }
+    }
+}
+
 /// Platform View Factory for Adaptive Cupertino TabBar
 ///
 /// Creates native iOS TabBar that can be embedded into Flutter's widget tree.
@@ -48,6 +96,7 @@ class AdaptiveCupertinoTabBarFactory: NSObject, FlutterPlatformViewFactory {
 class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     private var _view: UIView
     private var tabBar: UITabBar!
+    private var shadowView: UIView!
     private var messenger: FlutterBinaryMessenger
     private var selectedIndex: Int = 0
     private let channel: FlutterMethodChannel
@@ -55,6 +104,12 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     // iOS 26 state tracking
     private var minimizeBehavior: Int = 3 // 0-3, default: 3 (automatic)
     private var isIOS26: Bool = false
+    
+    // Layout constraints for structural minimization
+    private var leadingConstraint: NSLayoutConstraint!
+    private var trailingConstraint: NSLayoutConstraint!
+    private var bottomConstraint: NSLayoutConstraint!
+    private var topConstraint: NSLayoutConstraint!
 
     init(
         frame: CGRect,
@@ -64,11 +119,13 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     ) {
         print("🔍 [TabBar-View] Init started")
         self.messenger = messenger
-        self._view = UIView(frame: frame)
-
-        // CRITICAL: Container must be transparent for native blur to work
-        self._view.backgroundColor = .clear
-        self._view.isOpaque = false
+        
+        // Use custom container that triggers layout after window attachment
+        let containerView = TabBarContainerView(frame: frame)
+        containerView.clipsToBounds = false
+        containerView.backgroundColor = .clear
+        containerView.isOpaque = false
+        self._view = containerView
 
         self.channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios/tab_bar_\(viewId)",
@@ -94,10 +151,21 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     private func setupTabBar(arguments args: Any?) {
         print("🔍 [TabBar-Setup] Creating native UITabBar")
 
+        // Create shadow container (placed behind tabBar)
+        shadowView = UIView()
+        shadowView.backgroundColor = .clear
+        shadowView.translatesAutoresizingMaskIntoConstraints = false
+        _view.addSubview(shadowView)
+
         // Create native UITabBar
         tabBar = UITabBar()
         tabBar.delegate = self
         tabBar.translatesAutoresizingMaskIntoConstraints = false
+        _view.addSubview(tabBar)
+
+        // Clear native UITabBar shadow and background images to prevent standard box shadows
+        tabBar.shadowImage = UIImage()
+        tabBar.backgroundImage = UIImage()
 
         // Setup appearance based on iOS version
         // CHAOS: Three-tier fallback strategy with compile-time + runtime checks
@@ -127,22 +195,60 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
         }
 
         print("🔍 [TabBar-Setup] Created \(items.count) UITabBarItems")
+        
+        // CRITICAL FIX: Start hidden, will fade in after layout completes
+        tabBar.alpha = 0
+        
         tabBar.items = items
         if !items.isEmpty {
-            tabBar.selectedItem = items[0]
-            print("🔍 [TabBar-Setup] Selected first item")
+            // TRICK: Toggle selection to force iOS layout recalculation
+            // This is what happens when user taps a tab and labels suddenly fix themselves
+            if items.count > 1 {
+                tabBar.selectedItem = items[1]  // Select second tab first
+            }
+            tabBar.selectedItem = items[0]  // Then switch back to first
+            print("🔍 [TabBar-Setup] Selected first item with layout trick")
         }
 
         // Add to container view
         _view.addSubview(tabBar)
+        
+        // Link tabBar to container for automatic layout triggering after window attachment
+        if let containerView = _view as? TabBarContainerView {
+            containerView.tabBar = tabBar
+        }
+        
+        // Force layout
+        tabBar.sizeToFit()
+        tabBar.clipsToBounds = false
+        tabBar.setNeedsLayout()
+        tabBar.layoutIfNeeded()
 
-        // Auto layout constraints
+        // Auto layout constraints for dynamic transformation
+        leadingConstraint = tabBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor)
+        trailingConstraint = tabBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor)
+        bottomConstraint = tabBar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+        topConstraint = tabBar.topAnchor.constraint(equalTo: _view.topAnchor)
+        
         NSLayoutConstraint.activate([
-            tabBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-            tabBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            tabBar.topAnchor.constraint(equalTo: _view.topAnchor),
-            tabBar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+            leadingConstraint,
+            trailingConstraint,
+            bottomConstraint,
+            topConstraint
         ])
+
+        // Pin shadowView to tabBar to perfectly track its frame
+        NSLayoutConstraint.activate([
+            shadowView.leadingAnchor.constraint(equalTo: tabBar.leadingAnchor),
+            shadowView.trailingAnchor.constraint(equalTo: tabBar.trailingAnchor),
+            shadowView.topAnchor.constraint(equalTo: tabBar.topAnchor),
+            shadowView.bottomAnchor.constraint(equalTo: tabBar.bottomAnchor)
+        ])
+        
+        // CRITICAL: Ensure initial state is full-width
+        tabBar.setNeedsLayout()
+        tabBar.layoutIfNeeded()
+        _view.layoutIfNeeded()
     }
 
     /// iOS 26+ Direct Properties Setup
@@ -181,15 +287,29 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
         standardAppearance.stackedLayoutAppearance.selected.iconColor = .systemBlue
         standardAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
             .foregroundColor: UIColor.systemBlue,
-            .font: UIFont.systemFont(ofSize: 11, weight: .semibold)
+            .font: UIFont.systemFont(ofSize: 11, weight: .semibold),
+            .paragraphStyle: NSParagraphStyle.default
         ]
+        
+        // Selected (Inline & Compact)
+        standardAppearance.inlineLayoutAppearance.selected.iconColor = .systemBlue
+        standardAppearance.inlineLayoutAppearance.selected.titleTextAttributes = standardAppearance.stackedLayoutAppearance.selected.titleTextAttributes
+        standardAppearance.compactInlineLayoutAppearance.selected.iconColor = .systemBlue
+        standardAppearance.compactInlineLayoutAppearance.selected.titleTextAttributes = standardAppearance.stackedLayoutAppearance.selected.titleTextAttributes
 
         // Normal item style
         standardAppearance.stackedLayoutAppearance.normal.iconColor = .secondaryLabel
         standardAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor.secondaryLabel,
-            .font: UIFont.systemFont(ofSize: 11, weight: .medium)
+            .font: UIFont.systemFont(ofSize: 11, weight: .medium),
+            .paragraphStyle: NSParagraphStyle.default
         ]
+        
+        // Normal (Inline & Compact)
+        standardAppearance.inlineLayoutAppearance.normal.iconColor = .secondaryLabel
+        standardAppearance.inlineLayoutAppearance.normal.titleTextAttributes = standardAppearance.stackedLayoutAppearance.normal.titleTextAttributes
+        standardAppearance.compactInlineLayoutAppearance.normal.iconColor = .secondaryLabel
+        standardAppearance.compactInlineLayoutAppearance.normal.titleTextAttributes = standardAppearance.stackedLayoutAppearance.normal.titleTextAttributes
 
         // Scroll edge appearance (when content scrolls beneath)
         // Lighter blur for true Liquid Glass feel
@@ -198,27 +318,23 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
         scrollEdgeAppearance.backgroundEffect = UIBlurEffect(style: .systemThinMaterial) 
         // NO backgroundColor - let blur effect handle it naturally
 
-        // Selected item style (scroll edge)
-        scrollEdgeAppearance.stackedLayoutAppearance.selected.iconColor = .systemBlue
-        scrollEdgeAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor.systemBlue,
-            .font: UIFont.systemFont(ofSize: 11, weight: .semibold)
-        ]
+        // Copy over the item appearances from the standard appearance
+        scrollEdgeAppearance.stackedLayoutAppearance = standardAppearance.stackedLayoutAppearance
+        scrollEdgeAppearance.inlineLayoutAppearance = standardAppearance.inlineLayoutAppearance
+        scrollEdgeAppearance.compactInlineLayoutAppearance = standardAppearance.compactInlineLayoutAppearance
 
-        // Normal item style (scroll edge)
-        scrollEdgeAppearance.stackedLayoutAppearance.normal.iconColor = .secondaryLabel
-        scrollEdgeAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.secondaryLabel,
-            .font: UIFont.systemFont(ofSize: 11, weight: .medium)
-        ]
-
-        // Apply appearances
+        // CRITICAL: Configure spacing and positioning BEFORE assignment
+        // MAXIMIZE HORIZONTAL SPACE for labels
+        standardAppearance.stackedItemPositioning = .fill
+        standardAppearance.stackedItemSpacing = 0
+        scrollEdgeAppearance.stackedItemPositioning = .fill
+        scrollEdgeAppearance.stackedItemSpacing = 0
+        
+        // Apply appearances AFTER configuration
         tabBar.standardAppearance = standardAppearance
-        tabBar.scrollEdgeAppearance = scrollEdgeAppearance
-
-        // iOS 18+ specific: Enable scroll edge effect automatically
-        // The scroll edge effect is automatic in iOS 18+ when combined with scroll views
-        // No additional configuration needed - the system handles it
+        if #available(iOS 15.0, *) {
+            tabBar.scrollEdgeAppearance = scrollEdgeAppearance
+        }
     }
 
     private func setupStandardAppearance() {
@@ -389,8 +505,129 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
                     result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments for setBadgeColor", details: nil))
                 }
 
+            case "setMinimizationFactor":
+                if let args = call.arguments as? [String: Any],
+                   let factor = args["factor"] as? Double {
+                    self.updateMinimization(CGFloat(factor))
+                    result(nil)
+                } else {
+                    result(FlutterError(code: "INVALID_ARGS", message: "Invalid factor", details: nil))
+                }
+
             default:
                 result(FlutterMethodNotImplemented)
+            }
+        }
+    }
+
+    private var isInitialCall = true
+    private var minimizationRetryCount = 0
+    private let maxMinimizationRetries = 10  // Max 1 second of retries (10 * 100ms)
+
+    private func updateMinimization(_ factor: CGFloat) {
+        // CHAOS RESILIENCE: Skip until TabBar is in window with valid bounds
+        // The first call from Flutter happens before TabBar layout is complete
+        guard tabBar.window != nil && tabBar.bounds.width > 0 else {
+            // FAIL-SAFE: Limit retries to prevent infinite loop
+            guard minimizationRetryCount < maxMinimizationRetries else {
+                print("⚠️ [TabBar-Minimization] Max retries (\(maxMinimizationRetries)) reached. TabBar may not be in view hierarchy.")
+                minimizationRetryCount = 0  // Reset for future calls
+                return
+            }
+            
+            minimizationRetryCount += 1
+            print("🔄 [TabBar-Minimization] TabBar not ready (attempt \(minimizationRetryCount)/\(maxMinimizationRetries)), retrying in 100ms...")
+            
+            // Schedule a retry after TabBar is in view hierarchy
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.updateMinimization(factor)
+            }
+            return
+        }
+        
+        // Reset retry count on successful call
+        if minimizationRetryCount > 0 {
+            print("✅ [TabBar-Minimization] TabBar ready after \(minimizationRetryCount) retries")
+            minimizationRetryCount = 0
+        }
+        
+        // HYSTERESIS: Small values are treated as exact zero to prevent "ghost" insets
+        let clampedFactor = factor < 0.01 ? 0.0 : max(0, min(1, factor))
+        
+        // Dynamic Label Transparency: Fade out text as we minimize
+        let labelAlpha = factor < 0.01 ? 1.0 : (1.0 - (max(0, clampedFactor - 0.2) * 5.0))
+        let appearance = tabBar.standardAppearance
+        
+        [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance, appearance.compactInlineLayoutAppearance].forEach { layout in
+            let normalAttrs = layout.normal.titleTextAttributes
+            var newNormalAttrs = normalAttrs
+            newNormalAttrs[.foregroundColor] = (normalAttrs[.foregroundColor] as? UIColor ?? .secondaryLabel).withAlphaComponent(max(0, labelAlpha))
+            layout.normal.titleTextAttributes = newNormalAttrs
+            
+            let selectedAttrs = layout.selected.titleTextAttributes
+            var newSelectedAttrs = selectedAttrs
+            newSelectedAttrs[.foregroundColor] = (selectedAttrs[.foregroundColor] as? UIColor ?? .systemBlue).withAlphaComponent(max(0, labelAlpha))
+            layout.selected.titleTextAttributes = newSelectedAttrs
+        }
+        tabBar.standardAppearance = appearance
+        if #available(iOS 15.0, *) {
+            tabBar.scrollEdgeAppearance = appearance
+        }
+
+        func applyChanges() {
+            // Transition from full-width to a centered "Pill Island"
+            let horizontalInset: CGFloat = 32.0 * clampedFactor 
+            let bottomLift: CGFloat = 20.0 * clampedFactor      
+            
+            self.leadingConstraint.constant = horizontalInset
+            self.trailingConstraint.constant = -horizontalInset
+            self.bottomConstraint.constant = -bottomLift
+            
+            // Continuous Curvature: The bar is ALWAYS a pill
+            let fixedRadius: CGFloat = 36.0 
+            self.tabBar.layer.cornerRadius = fixedRadius
+            self.tabBar.clipsToBounds = false 
+            self.shadowView.layer.cornerRadius = fixedRadius
+            
+            // Vertical transform & scale
+            let scale: CGFloat = 1.0 - (0.05 * clampedFactor)
+            let transform = CGAffineTransform(scaleX: scale, y: scale)
+            self.tabBar.transform = transform
+            self.shadowView.transform = transform
+            
+            // Shadow Adjustments
+            if clampedFactor > 0.01 {
+                self.shadowView.layer.shadowOpacity = Float(0.05 * clampedFactor)
+                self.shadowView.layer.shadowOffset = CGSize(width: 0, height: 1.0 * clampedFactor)
+                self.shadowView.layer.shadowRadius = 4 * clampedFactor
+                
+                let shadowDX: CGFloat = 16.0 * clampedFactor
+                let shadowDY: CGFloat = 12.0 * clampedFactor
+                let insetRect = self.shadowView.bounds.insetBy(dx: shadowDX, dy: shadowDY)
+                
+                let path = UIBezierPath(roundedRect: insetRect, cornerRadius: fixedRadius)
+                self.shadowView.layer.shadowPath = path.cgPath
+            } else {
+                self.shadowView.layer.shadowOpacity = 0
+                self.shadowView.layer.shadowPath = nil
+            }
+            
+            // FORCE layout sync
+            self.tabBar.setNeedsLayout()
+            self.tabBar.layoutIfNeeded()
+            self._view.layoutIfNeeded()
+        }
+
+        // SYNC: Ensure the view state is matched immediately on first call without animation
+        if isInitialCall {
+            isInitialCall = false
+            UIView.performWithoutAnimation {
+                applyChanges()
+            }
+        } else {
+            // Spring animation for native iOS feel
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0, options: [.curveEaseOut, .beginFromCurrentState]) {
+                applyChanges()
             }
         }
     }
