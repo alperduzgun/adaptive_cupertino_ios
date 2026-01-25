@@ -94,10 +94,32 @@ AdaptiveScaffold(
     ],
     currentIndex: 0,
     onTap: (index) => _handleNavigation(index),
+    minimizationFactor: _scrollOffset, // 0.0 to 1.0 for dynamic TabBar sizing
   ),
   body: const RepositoryStream(),
 )
 ```
+
+### Dynamic TabBar Minimization
+
+The `minimizationFactor` property enables scroll-aware TabBar transformations:
+
+```dart
+// In your scroll listener:
+void _onScroll() {
+  final factor = (scrollController.position.pixels / 200.0).clamp(0.0, 1.0);
+  setState(() => _minimizationFactor = factor);
+}
+
+// Apply to TabBar:
+AdaptiveCupertinoTabBar(
+  items: items,
+  currentIndex: index,
+  minimizationFactor: _minimizationFactor,
+)
+```
+
+> **Note:** The TabBar automatically handles timing edge cases where Flutter calls native code before iOS completes layout. A retry mechanism with observability logging ensures reliable initialization.
 
 ### Native Button Configurations
 
@@ -156,11 +178,11 @@ The library utilizes a hybrid Flutter-Native bridge to ensure pixel-perfect rend
 
 ## Development Roadmap
 
-### Version 0.3.1 (Current)
+### Version 0.4.0 (Current)
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSegmentedControl` component.
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSwitch`.
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSlider` component.
-- [ ] **Dynamic Structural Minimization**: Native scroll-aware TabBar transformations for reduced footprint during content consumption.
+- [x] **Dynamic Structural Minimization**: Native scroll-aware TabBar transformations with `minimizationFactor` property.
 - [ ] **Native Contextual Search**: Implementation of iOS 26+ native search tab transitions.
 - [ ] **Flexible Layout Spacers**: Enhanced horizontal distribution API for complex toolbar requirements.
 - [ ] **Adaptive Elevation**: Automatic depth/shadow management for Liquid Glass layers.
