@@ -53,6 +53,20 @@ public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
             segmentedFactory,
             withId: "adaptive_cupertino_ios/segmented_control"
         )
+        
+        // Switch PlatformView
+        let switchFactory = AdaptiveCupertinoSwitchFactory(messenger: registrar.messenger())
+        registrar.register(
+            switchFactory,
+            withId: "adaptive_cupertino_ios/switch"
+        )
+        
+        // Slider PlatformView
+        let sliderFactory = AdaptiveCupertinoSliderFactory(messenger: registrar.messenger())
+        registrar.register(
+            sliderFactory,
+            withId: "adaptive_cupertino_ios/slider"
+        )
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {

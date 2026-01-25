@@ -37,6 +37,9 @@ A high-performance Flutter library providing native iOS system widgets with auto
 | `AdaptiveButton.glass()` | Native glass configuration | CupertinoButton | ElevatedButton |
 | `AdaptiveButton.glassProminent()` | Native prominentGlass | CupertinoButton | ElevatedButton |
 
+| `AdaptiveSegmentedControl` | Native UISegmentedControl (Liquid Glass) | CupertinoSegmentedControl | Material SegmentedButton |
+| `AdaptiveSwitch` | Native UISwitch (Liquid Glass) | CupertinoSwitch | Switch.adaptive |
+
 ### System Integration
 
 | Feature | Description |
@@ -112,6 +115,24 @@ AdaptiveButton.glassProminent(
 )
 ```
 
+### Adaptive Controls
+
+```dart
+// Adaptive Switch (Native iOS 26 Liquid Glass)
+AdaptiveSwitch(
+  value: _isEnabled,
+  onChanged: (val) => setState(() => _isEnabled = val),
+)
+
+// Adaptive Segmented Control
+AdaptiveSegmentedControl<int>(
+  values: const [0, 1, 2],
+  labels: const ['Day', 'Week', 'Month'],
+  selectedValue: _selectedIndex,
+  onValueChanged: (index) => _updateView(index),
+)
+```
+
 ## Technical Specifications
 
 ### iOS Architecture
@@ -129,7 +150,8 @@ The library utilizes a hybrid Flutter-Native bridge to ensure pixel-perfect rend
 
 ### Version 0.3.1 (Current)
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSegmentedControl` component.
-- [ ] **Native iOS 26 Controls**: Native-backed `AdaptiveSwitch` and `AdaptiveSlider` components.
+- [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSwitch`.
+- [ ] **Native iOS 26 Controls**: Native-backed `AdaptiveSlider` component.
 - [ ] **Dynamic Structural Minimization**: Native scroll-aware TabBar transformations for reduced footprint during content consumption.
 - [ ] **Native Contextual Search**: Implementation of iOS 26+ native search tab transitions.
 - [ ] **Flexible Layout Spacers**: Enhanced horizontal distribution API for complex toolbar requirements.

@@ -256,7 +256,11 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
   }
 
   bool _requiresNativeGlassButton() {
+    // Fail Safe: Only use native view if child is simple Text.
+    // Complex children (Rows, Columns, Loaders) cannot be rendered by the native factory.
+    final bool isSimpleContent = widget.child is Text;
     return Platform.isIOS &&
+        isSimpleContent &&
         (widget.style == AdaptiveButtonStyle.glass ||
             widget.style == AdaptiveButtonStyle.glassProminent ||
             widget.style == AdaptiveButtonStyle.glassTinted);

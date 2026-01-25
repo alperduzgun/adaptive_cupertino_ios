@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import os.log
 
 /// Platform View Factory for Adaptive Cupertino Button
 ///
@@ -62,6 +63,7 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
     private var button: UIButton!
     private var messenger: FlutterBinaryMessenger
     private let channel: FlutterMethodChannel
+    private static let logger = OSLog(subsystem: "com.adaptive_cupertino_ios", category: "ButtonFactory")
     
     // Runtime version check
     private let isIOS26: Bool
@@ -93,6 +95,7 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
 
     private func setupButton(arguments args: Any?) {
         guard let params = args as? [String: Any] else {
+            os_log(.error, log: Self.logger, "Failed to cast arguments to [String: Any], falling back to default.")
             setupFallbackButton()
             return
         }
@@ -107,23 +110,26 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         let style = AdaptiveButtonStyle(rawValue: styleString) ?? .glass
         let iconPlacement = IconPlacement(rawValue: iconPlacementString) ?? .leading
 
-        // Create button based on availability AND runtime check
-        if #available(iOS 26.0, *), isIOS26 {
-            // Modern iOS 26+ "Liquid Glass" / Pill styles
-            button = createModernButton(
-                title: title,
-                style: style,
-                tintColor: tintColor,
-                iconName: iconName,
-                iconPlacement: iconPlacement
-            )
+        // Create button based on Liquid Glass support (iOS 18+)
+        if #available(iOS 15.0, *) {
+        // Create button based on availability (iOS 26+)
+        if #available(iOS 26.0, *) {
+             // Use native iOS 26+ "Liquid Glass" styles
+             button = createModernButton(
+                 title: title,
+                 style: style,
+                 tintColor: tintColor,
+                 iconName: iconName,
+                 iconPlacement: iconPlacement
+             )
         } else {
-            // Fallback for older iOS (Standard Filled/Plain)
-            button = createFallbackButton(
-                title: title,
-                enabled: enabled,
-                iconName: iconName
-            )
+             // Fallback for older iOS
+             button = createFallbackButton(
+                 title: title,
+                 enabled: enabled,
+                 iconName: iconName
+             )
+        }
         }
 
         button.isEnabled = enabled
@@ -279,19 +285,21 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
                     self.button.isEnabled = enabled
                     result(nil)
                 } else {
+                    os_log(.error, log: Self.logger, "Invalid arguments for setEnabled")
                     result(FlutterError(code: "INVALID_ARGS", message: "Invalid enabled argument", details: nil))
                 }
 
             case "setTitle":
                 if let args = call.arguments as? [String: Any],
                    let title = args["title"] as? String {
-                    if #available(iOS 26.0, *), self.isIOS26 {
+                    if #available(iOS 26.0, *) {
                          self.button.configuration?.title = title
                     } else {
                         self.button.setTitle(title, for: .normal)
                     }
                     result(nil)
                 } else {
+                    os_log(.error, log: Self.logger, "Invalid arguments for setTitle")
                     result(FlutterError(code: "INVALID_ARGS", message: "Invalid title argument", details: nil))
                 }
 
@@ -305,3 +313,5 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         channel.invokeMethod("onPressed", arguments: nil)
     }
 }
+
+
