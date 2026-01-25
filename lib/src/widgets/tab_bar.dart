@@ -90,6 +90,12 @@ class AdaptiveCupertinoTabBar extends StatefulWidget {
   /// Only available on iOS 26+ native implementation.
   final double minimizationFactor;
 
+  /// The base elevation level (0.0 to 10.0) for shadow depth.
+  /// Higher values create deeper, more prominent shadows.
+  /// This value is multiplied by minimizationFactor for scroll-aware elevation.
+  /// Only available on iOS 18+ native implementation.
+  final double elevation;
+
   const AdaptiveCupertinoTabBar({
     Key? key,
     required this.items,
@@ -99,6 +105,7 @@ class AdaptiveCupertinoTabBar extends StatefulWidget {
     this.activeColor,
     this.inactiveColor,
     this.minimizationFactor = 0.0,
+    this.elevation = 4.0,
   }) : super(key: key);
 
   @override
@@ -156,6 +163,10 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
     // Set initial minimization factor
     _tabBarChannel!.invokeMethod(
         'setMinimizationFactor', {'factor': widget.minimizationFactor});
+
+    // Set initial elevation
+    _tabBarChannel!
+        .invokeMethod('setElevation', {'elevation': widget.elevation});
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
@@ -182,6 +193,12 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
         _useNativeTabBar) {
       _tabBarChannel?.invokeMethod(
           'setMinimizationFactor', {'factor': widget.minimizationFactor});
+    }
+
+    // Update elevation if changed
+    if (widget.elevation != oldWidget.elevation && _useNativeTabBar) {
+      _tabBarChannel
+          ?.invokeMethod('setElevation', {'elevation': widget.elevation});
     }
   }
 

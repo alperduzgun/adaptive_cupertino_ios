@@ -511,6 +511,17 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
                     result(FlutterError(code: "INVALID_ARGS", message: "Invalid factor", details: nil))
                 }
 
+            case "setElevation":
+                if let args = call.arguments as? [String: Any],
+                   let elevation = args["elevation"] as? Double {
+                    self.baseElevation = CGFloat(elevation)
+                    // Re-apply current minimization to update shadow with new elevation
+                    self.updateMinimization(self.currentMinimizationFactor)
+                    result(nil)
+                } else {
+                    result(FlutterError(code: "INVALID_ARGS", message: "Invalid elevation", details: nil))
+                }
+
             default:
                 result(FlutterMethodNotImplemented)
             }
@@ -520,6 +531,8 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     private var isInitialCall = true
     private var minimizationRetryCount = 0
     private let maxMinimizationRetries = 10  // Max 1 second of retries (10 * 100ms)
+    private var baseElevation: CGFloat = 4.0  // Default elevation level (0-10)
+    private var currentMinimizationFactor: CGFloat = 0.0  // Track current factor for re-application
 
     private func updateMinimization(_ factor: CGFloat) {
         // CHAOS RESILIENCE: Skip until TabBar is in window with valid bounds
@@ -547,6 +560,9 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
             print("✅ [TabBar-Minimization] TabBar ready after \(minimizationRetryCount) retries")
             minimizationRetryCount = 0
         }
+        
+        // Store current factor for re-application when elevation changes
+        currentMinimizationFactor = factor
         
         // HYSTERESIS: Small values are treated as exact zero to prevent "ghost" insets
         let clampedFactor = factor < 0.01 ? 0.0 : max(0, min(1, factor))
@@ -592,11 +608,20 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
             self.tabBar.transform = transform
             self.shadowView.transform = transform
             
-            // Shadow Adjustments
+            // Shadow Adjustments using baseElevation for configurable depth
+            // CHAOS FIX: Use non-linear curves for a more natural transition
+            // Radius grows quickly (softens early), Opacity grows slowly (faint start)
+            let radiusFactor = pow(clampedFactor, 0.5)
+            let opacityFactor = pow(clampedFactor, 1.5)
+            let effectiveElevation = self.baseElevation * clampedFactor
+            
             if clampedFactor > 0.01 {
-                self.shadowView.layer.shadowOpacity = Float(0.05 * clampedFactor)
-                self.shadowView.layer.shadowOffset = CGSize(width: 0, height: 1.0 * clampedFactor)
-                self.shadowView.layer.shadowRadius = 4 * clampedFactor
+                // Shadow opacity: Starts faint, gains intensity slower
+                self.shadowView.layer.shadowOpacity = Float(opacityFactor * 0.12)
+                // Shadow offset: 0.5 per elevation level
+                self.shadowView.layer.shadowOffset = CGSize(width: 0, height: 0.5 * effectiveElevation)
+                // Shadow radius: Softens immediately upon appearance
+                self.shadowView.layer.shadowRadius = radiusFactor * self.baseElevation * 1.5
                 
                 let shadowDX: CGFloat = 16.0 * clampedFactor
                 let shadowDY: CGFloat = 12.0 * clampedFactor
