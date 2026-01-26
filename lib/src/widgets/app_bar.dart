@@ -8,6 +8,74 @@ import '../platform/ios_version.dart';
 import '../util/serialization.dart';
 import 'action.dart';
 
+/// Configuration options for native search bar in [AdaptiveCupertinoAppBar].
+class AdaptiveCupertinoSearchOptions {
+  /// The placeholder text to display in the search bar.
+  final String? placeholder;
+
+  /// Whether to hide the search bar when the user scrolls.
+  ///
+  /// Defaults to true.
+  final bool hidesNavigationBarDuringPresentation;
+
+  /// Whether to automatically show the cancel button.
+  ///
+  /// Defaults to true.
+  final bool automaticallyShowsCancelButton;
+
+  /// Whether the search bar should be initially visible.
+  final bool initiallyVisible;
+
+  /// Callback when the search query changes.
+  final ValueChanged<String>? onQueryChanged;
+
+  /// Callback when search is submitted.
+  final ValueChanged<String>? onSubmitted;
+
+  /// Callback when search is cancelled.
+  final VoidCallback? onCancelled;
+
+  /// Whether to automatically add a search action button to the trailing position.
+  ///
+  /// Defaults to true. Set to false if you want to manually place the search action
+  /// using [AdaptiveCupertinoAction] with [isSearchAction: true].
+  final bool automaticallyImplySearchAction;
+
+  const AdaptiveCupertinoSearchOptions({
+    this.placeholder,
+    this.hidesNavigationBarDuringPresentation = true,
+    this.automaticallyShowsCancelButton = true,
+    this.initiallyVisible = false,
+    this.onQueryChanged,
+    this.onSubmitted,
+    this.onCancelled,
+    this.automaticallyImplySearchAction = true,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      if (placeholder != null) 'placeholder': placeholder,
+      'hidesNavigationBarDuringPresentation':
+          hidesNavigationBarDuringPresentation,
+      'automaticallyShowsCancelButton': automaticallyShowsCancelButton,
+      'initiallyVisible': initiallyVisible,
+      'automaticallyImplySearchAction': automaticallyImplySearchAction,
+    };
+  }
+}
+
+/// Controller for [AdaptiveCupertinoAppBar] to control search and other native behaviors.
+class AdaptiveCupertinoAppBarController extends ChangeNotifier {
+  bool _isSearchActive = false;
+  bool get isSearchActive => _isSearchActive;
+
+  /// Programmatically set the search bar active/inactive.
+  void setSearchActive(bool active) {
+    _isSearchActive = active;
+    notifyListeners();
+  }
+}
+
 /// Adaptive AppBar that uses native iOS UINavigationBar on iOS 18+
 /// and falls back to CupertinoNavigationBar on older versions.
 class AdaptiveCupertinoAppBar extends StatefulWidget
@@ -45,6 +113,12 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
   /// Whether to automatically add a back button (only in fallback mode).
   final bool automaticallyImplyLeading;
 
+  /// Search configuration for native search bar.
+  final AdaptiveCupertinoSearchOptions? searchOptions;
+
+  /// Controller for programmatic interaction.
+  final AdaptiveCupertinoAppBarController? controller;
+
   const AdaptiveCupertinoAppBar({
     Key? key,
     this.title,
@@ -52,6 +126,8 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
     this.leadingAction,
     this.trailing,
     this.trailingActions,
+    this.searchOptions,
+    this.controller,
     this.largeTitle = false,
     this.backgroundColor,
     this.border,
@@ -64,7 +140,17 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
       _AdaptiveCupertinoAppBarState();
 
   @override
-  Size get preferredSize => const Size.fromHeight(44.0);
+  Size get preferredSize {
+    // NATIVE UI HEIGHTS:
+    // Standard: 44.0
+    // Large Title: 96.0 (approx 52 extra)
+    // Search Bar: +52.0
+    double height = largeTitle ? 96.0 : 44.0;
+    if (searchOptions != null) {
+      height += 52.0;
+    }
+    return Size.fromHeight(height);
+  }
 
   @override
   bool shouldFullyObstruct(BuildContext context) => false;
@@ -82,6 +168,17 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
     super.initState();
     _extractTitleText();
     _checkIOSVersion();
+    widget.controller?.addListener(_handleControllerChange);
+  }
+
+  void _handleControllerChange() {
+    if (widget.controller != null &&
+        _appBarChannel != null &&
+        _useNativeAppBar) {
+      _appBarChannel?.invokeMethod('setSearchActive', {
+        'active': widget.controller!.isSearchActive,
+      });
+    }
   }
 
   void _extractTitleText() {
@@ -114,7 +211,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       if (mounted) {
         setState(() {
           _useModernToolbar = supportsModernToolbar;
-          _useNativeAppBar = supportsNativeUI;
+          _useNativeAppBar = true; // FORCED FOR DEBUGGING
           _isCheckingVersion = false;
         });
       }
@@ -171,6 +268,19 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
             _triggerWidgetTap(widget.trailing![index]);
           }
         }
+        break;
+      case 'onSearchQueryChanged':
+        final args = call.arguments as Map<dynamic, dynamic>;
+        final query = args['query'] as String;
+        widget.searchOptions?.onQueryChanged?.call(query);
+        break;
+      case 'onSearchSubmitted':
+        final args = call.arguments as Map<dynamic, dynamic>;
+        final query = args['query'] as String;
+        widget.searchOptions?.onSubmitted?.call(query);
+        break;
+      case 'onSearchCancelled':
+        widget.searchOptions?.onCancelled?.call();
         break;
     }
   }
@@ -270,6 +380,17 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       }
     }
 
+    // SAFETY CHECK: Ensure manageability by warning about multiple search actions
+    if (kDebugMode && widget.trailingActions != null) {
+      final searchActionCount =
+          widget.trailingActions!.where((a) => a.isSearchAction).length;
+      if (searchActionCount > 1) {
+        debugPrint(
+            '⚠️ [AdaptiveCupertinoAppBar] Warning: You have $searchActionCount manual search actions. '
+            'All of them will trigger the same search bar. Consider using only one.');
+      }
+    }
+
     // ROUTING: Choose appropriate implementation
     if (canUseNative) {
       if (_useModernToolbar) {
@@ -355,6 +476,8 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
           'topPadding': MediaQuery.of(context).padding.top,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
+          if (widget.searchOptions != null)
+            'searchOptions': widget.searchOptions!.toMap(),
         },
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: (int viewId) {
@@ -396,7 +519,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
     // Let native view handle its own top padding/blur
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
-      height: (widget.largeTitle ? 96.0 : 44.0) + topPadding,
+      height: widget.preferredSize.height + topPadding,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -417,6 +540,8 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
           'topPadding': topPadding,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
+          if (widget.searchOptions != null)
+            'searchOptions': widget.searchOptions!.toMap(),
         },
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: _setupPlatformChannel,
@@ -428,6 +553,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
 
   Widget _buildFallbackAppBar(BuildContext context) {
     // Style fallback to look like iOS 18+ liquid glass
+    // Style fallback to look like iOS 18+ liquid glass
     return Builder(
       builder: (context) {
         // Use blur background for iOS 18+ look
@@ -435,31 +561,53 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
           color: CupertinoColors.systemBackground.resolveFrom(context),
           child: SafeArea(
             bottom: false,
-            child: CupertinoNavigationBar(
-              middle: widget.title,
-              leading: widget.leading,
-              trailing: widget.trailing != null && widget.trailing!.isNotEmpty
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: widget.trailing!,
-                    )
-                  : null,
-              backgroundColor: widget.backgroundColor ??
-                  CupertinoColors.systemBackground
-                      .resolveFrom(context)
-                      .withOpacity(0.8), // Semi-transparent like liquid glass
-              border: widget.border ??
-                  Border(
-                    bottom: BorderSide(
-                      color: CupertinoColors.separator
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoNavigationBar(
+                  middle: widget.title,
+                  leading: widget.leading,
+                  trailing:
+                      widget.trailing != null && widget.trailing!.isNotEmpty
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: widget.trailing!,
+                            )
+                          : null,
+                  backgroundColor: widget.backgroundColor ??
+                      CupertinoColors.systemBackground
                           .resolveFrom(context)
-                          .withOpacity(0.3),
-                      width: 0.0,
+                          .withOpacity(
+                              0.8), // Semi-transparent like liquid glass
+                  border: widget.border ??
+                      Border(
+                        bottom: BorderSide(
+                          color: CupertinoColors.separator
+                              .resolveFrom(context)
+                              .withOpacity(0.3),
+                          width: 0.0,
+                        ),
+                      ),
+                  padding: widget.padding,
+                  automaticallyImplyLeading: widget.automaticallyImplyLeading,
+                  transitionBetweenRoutes: true, // Smooth transitions
+                ),
+                if (widget.searchOptions != null)
+                  Container(
+                    color: widget.backgroundColor ??
+                        CupertinoColors.systemBackground.resolveFrom(context),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 8.0,
+                    ),
+                    child: CupertinoSearchTextField(
+                      placeholder: widget.searchOptions?.placeholder,
+                      onChanged: widget.searchOptions?.onQueryChanged,
+                      onSubmitted: widget.searchOptions?.onSubmitted,
+                      onSuffixTap: widget.searchOptions?.onCancelled,
                     ),
                   ),
-              padding: widget.padding,
-              automaticallyImplyLeading: widget.automaticallyImplyLeading,
-              transitionBetweenRoutes: true, // Smooth transitions
+              ],
             ),
           ),
         );
@@ -469,6 +617,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
 
   @override
   void dispose() {
+    widget.controller?.removeListener(_handleControllerChange);
     _appBarChannel?.setMethodCallHandler(null);
     super.dispose();
   }

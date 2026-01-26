@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -103,8 +105,9 @@ class AdaptiveScaffold extends StatelessWidget {
             if (floatingActionButton != null)
               Positioned(
                 right: 16,
-                bottom: (bottomNavigationBar != null ? 80 : 16) +
-                    MediaQuery.paddingOf(context).bottom,
+                bottom:
+                    (bottomNavigationBar != null || Platform.isIOS ? 80 : 16) +
+                        MediaQuery.paddingOf(context).bottom,
                 child: floatingActionButton!,
               ),
           ],

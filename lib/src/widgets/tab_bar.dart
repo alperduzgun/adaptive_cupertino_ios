@@ -27,6 +27,9 @@ class AdaptiveCupertinoTabItem {
   /// Optional SF Symbol name override for selected state.
   final String? selectedSfSymbolName;
 
+  /// Whether this tab is a search tab (iOS 26+ native only).
+  final bool isSearch;
+
   const AdaptiveCupertinoTabItem({
     required this.label,
     required this.icon,
@@ -34,6 +37,7 @@ class AdaptiveCupertinoTabItem {
     this.badge,
     this.sfSymbolName,
     this.selectedSfSymbolName,
+    this.isSearch = false,
   });
 
   /// Convert to map for platform channel.
@@ -59,6 +63,10 @@ class AdaptiveCupertinoTabItem {
 
     if (badge != null) {
       data['badge'] = badge;
+    }
+
+    if (isSearch) {
+      data['isSearch'] = true;
     }
 
     return data;
@@ -91,9 +99,6 @@ class AdaptiveCupertinoTabBar extends StatefulWidget {
   final double minimizationFactor;
 
   /// The base elevation level (0.0 to 10.0) for shadow depth.
-  /// Higher values create deeper, more prominent shadows.
-  /// This value is multiplied by minimizationFactor for scroll-aware elevation.
-  /// Only available on iOS 18+ native implementation.
   final double elevation;
 
   const AdaptiveCupertinoTabBar({

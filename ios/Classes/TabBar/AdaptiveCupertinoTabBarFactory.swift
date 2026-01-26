@@ -345,7 +345,7 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     /// CHAOS RESISTANT: Validates all inputs with safe defaults
     /// iOS 26: Search tab support + optimized rendering modes
     private func createTabItems(from data: [[String: Any]]) -> [UITabBarItem] {
-        return data.compactMap { itemData in
+        return data.enumerated().compactMap { (index, itemData) in
             // SECURITY: Validate required fields
             guard let label = itemData["label"] as? String else {
                 print("⚠️ [TabBar] Missing label, skipping")
@@ -355,19 +355,11 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
             let badge = itemData["badge"] as? String
             let isSearchTab = itemData["isSearch"] as? Bool ?? false
 
-            // iOS 26: Search tab support
-            var item: UITabBarItem
-            if isIOS26 && isSearchTab {
-                // Native search tab (iOS 26+)
-                if #available(iOS 26.0, *) {
-                    item = UITabBarItem(tabBarSystemItem: .search, tag: 0)
-                    item.title = label // Override default "Search" if needed
-                    print("📱 [TabBar] Created iOS 26 search tab")
-                } else {
-                    item = createRegularTabItem(from: itemData, label: label)
-                }
-            } else {
-                item = createRegularTabItem(from: itemData, label: label)
+            // Search tab support
+            let item = createRegularTabItem(from: itemData, label: label)
+            item.tag = index
+            if isSearchTab {
+                print("📱 [TabBar] Identified search tab at index \(index)")
             }
 
             // iOS 26: Optimized rendering modes
@@ -684,11 +676,26 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
 @available(iOS 15.0, *)
 extension AdaptiveCupertinoTabBarPlatformView: UITabBarDelegate {
     func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
-        guard let index = tabBar.items?.firstIndex(of: item) else { return }
+        let index = item.tag
         selectedIndex = index
 
         // Notify Flutter
         channel.invokeMethod("onTabChanged", arguments: ["index": index])
+    }
+}
+
+// MARK: - Parent ViewController Helper
+
+extension UIView {
+    var parentViewController: UIViewController? {
+        var parentResponder: UIResponder? = self
+        while parentResponder != nil {
+            parentResponder = parentResponder?.next
+            if let viewController = parentResponder as? UIViewController {
+                return viewController
+            }
+        }
+        return nil
     }
 }
 

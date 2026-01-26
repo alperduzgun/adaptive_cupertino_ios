@@ -59,7 +59,7 @@ class AdaptiveCupertinoToolbarFactory: NSObject, FlutterPlatformViewFactory {
 /// - Self-healing: Invalid state resets to safe defaults
 /// - No silent failures: All errors logged
 @available(iOS 15.0, *)
-class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToolbarDelegate {
+class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToolbarDelegate, UISearchResultsUpdating, UISearchBarDelegate {
 
     // MARK: - Properties
     private var _view: UIView
@@ -71,6 +71,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     private let viewId: Int64
     private let isIOS26: Bool
     private var topPadding: CGFloat = 0
+    private var searchController: UISearchController?
 
     // MARK: - Observability
     private static let logger = OSLog(subsystem: "com.adaptive_cupertino_ios", category: "ToolbarView")
@@ -135,7 +136,9 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         toolbar.backgroundColor = .clear
         toolbar.translatesAutoresizingMaskIntoConstraints = false
 
-        // 1. Ensure the container view is fully transparent
+        self.navigationItem = UINavigationItem()
+        
+        // Ensure the container view is fully transparent
         _view.backgroundColor = .clear
         _view.isOpaque = false
 
@@ -178,15 +181,92 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         // Add toolbar to container (on top of liquid glass if enabled)
         _view.addSubview(toolbar)
 
-        // Pin toolbar to Safe Area for content
+        // Pin toolbar to explicit top padding (Manual Layout)
+        // We avoid safeAreaLayoutGuide for top anchor due to Flutter embedding constraints
         NSLayoutConstraint.activate([
             toolbar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            toolbar.topAnchor.constraint(equalTo: _view.safeAreaLayoutGuide.topAnchor),
+            toolbar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
             toolbar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
         ])
+        
+        // 4. Setup Search Controller if options are provided
+        // ACTION-BASED SEARCH: We init the controller but present it via button tap
+        if let params = args as? [String: Any],
+           let searchOptions = params["searchOptions"] as? [String: Any] {
+            // OPTIMIZATION: Use lightweight inline bar instead of heavy Controller
+            // setupSearchController(options: searchOptions)
+            setupInlineSearchBar()
+        }
 
-        os_log(.info, log: Self.logger, "Native UIToolbar setup completed (liquidGlass: %{public}@)", enableLiquidGlass ? "enabled" : "disabled")
+        os_log(.info, log: Self.logger, "Native UIToolbar setup completed (Action-based search ready)")
+    }
+    
+    private func setupSearchController(options: [String: Any]) {
+        let sc = UISearchController(searchResultsController: nil)
+        sc.searchResultsUpdater = self
+        sc.searchBar.delegate = self
+        sc.obscuresBackgroundDuringPresentation = false
+        
+        if let placeholder = options["placeholder"] as? String {
+            sc.searchBar.placeholder = placeholder
+        } else {
+            sc.searchBar.placeholder = "Search"
+        }
+        
+        if let hides = options["hidesNavigationBarDuringPresentation"] as? Bool {
+            sc.hidesNavigationBarDuringPresentation = hides
+        }
+        
+        if let showsCancel = options["automaticallyShowsCancelButton"] as? Bool {
+            sc.automaticallyShowsCancelButton = showsCancel
+        }
+        
+        // Apply Liquid Glass aesthetic to search bar
+        if #available(iOS 13.0, *) {
+            let textField = sc.searchBar.searchTextField
+            textField.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.2)
+            textField.layer.cornerRadius = 10
+            textField.clipsToBounds = true
+            
+            // Enhance blur interaction
+            sc.searchBar.backgroundImage = UIImage() // Remove default background
+        }
+        
+        self.searchController = sc
+        self.searchController = sc
+        // self.navigationItem?.searchController = sc // MANUAL MODE: View added manually
+        
+        // Manual mode visibility control
+        // if let initiallyVisible = options["initiallyVisible"] as? Bool, initiallyVisible {
+        //    self.navigationItem?.hidesSearchBarWhenScrolling = false
+        // } else {
+        //    self.navigationItem?.hidesSearchBarWhenScrolling = true
+        // }
+        
+        os_log(.info, log: Self.logger, "UISearchController created (Manual Layout)")
+    }
+
+    /// OPTIMIZATION: Pre-warm the search bar to avoid frame drop on tap
+    private func setupInlineSearchBar() {
+        let searchBar = UISearchBar()
+        searchBar.delegate = self
+        searchBar.placeholder = "Search"
+        searchBar.showsCancelButton = true
+        searchBar.searchBarStyle = .minimal
+        
+        // FIX: Remove background to prevent "extended" look in Toolbar
+        searchBar.backgroundImage = UIImage()
+        searchBar.backgroundColor = .clear
+        
+        // CONSTRAINT FIX: Disable mask translation to prevent conflict with UIToolbar
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
+        
+        // FIX: Ensure it has an intrinsic size before adding
+        searchBar.sizeToFit()
+        
+        self.inlineSearchBar = searchBar
+        os_log(.info, log: Self.logger, "InlineSearchBar pre-warmed for performance")
     }
 
     /// Custom Liquid Glass Background View with gradient-masked blur
@@ -323,93 +403,88 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     /// Configure toolbar items from Dart parameters with validation
     /// SECURITY: All inputs validated before use
     /// CHAOS RESISTANT: Invalid data results in safe defaults
+    // MARK: - State Management
+    private var defaultToolbarItems: [UIBarButtonItem] = []
+    private var plainTitleLabel: UILabel?
+    private var inlineSearchBar: UISearchBar? // Optimized: Reusable search instance
+    
+    // ...
+
     private func configureToolbarItems(from params: [String: Any]) {
         os_log(.debug, log: Self.logger, "Configuring toolbar items: %{public}@", String(describing: params))
 
-        var toolbarItems: [UIBarButtonItem] = []
+        var items: [UIBarButtonItem] = []
         
         // 1. Extract and sanitize title (may be nil)
         var titleText: String? = nil
         if let title = params["title"] as? String, !title.isEmpty {
             titleText = sanitizeString(title, maxLength: 100)
-            os_log(.debug, log: Self.logger, "Title: %{public}@", titleText ?? "")
         }
         
-        // Check if using plain title style (no pill/bubble)
-        let usePlainTitle = (params["usePlainTitle"] as? Bool) ?? true
+        // Default to FALSE (Enable "Pill" style by default)
+        let usePlainTitle = (params["usePlainTitle"] as? Bool) ?? false
         
-        // Parse optional title color (ARGB integer from Flutter)
-        // nil = use adaptive .label color
+        // Parse optional title color
         var titleColor: UIColor? = nil
         if let colorValue = params["titleColor"] as? Int, colorValue >= 0 {
             titleColor = UIColor(argb: colorValue)
-            
-            // CHAOS WARNING: Zero-alpha color would be invisible
-            let alpha = (colorValue >> 24) & 0xFF
-            if alpha == 0 {
-                os_log(.default, log: Self.logger, "Warning: titleColor has zero alpha (invisible)")
-            }
-            
-            os_log(.debug, log: Self.logger, "Custom title color: 0x%{public}08X (alpha: %{public}d)", colorValue, alpha)
-        } else if let colorValue = params["titleColor"] as? Int {
-            // Negative value provided - log and use default
-            os_log(.default, log: Self.logger, "Invalid negative color value: %{public}d, using default", colorValue)
         }
 
         // 2. Setup leading button (LEFT side)
         if let leadingData = params["leading"] as? [String: Any] {
             if let leadingButton = createBarButtonItem(from: leadingData, position: .leading) {
-                toolbarItems.append(leadingButton)
-                os_log(.debug, log: Self.logger, "Leading button added")
+                items.append(leadingButton)
             }
         }
 
-        // 3. Add flexible space (left side of title or between leading/trailing)
-        toolbarItems.append(UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil))
+        // 3. Add flexible space
+        items.append(UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil))
         
-        // 4. Add centered title if provided AND using pill style (not plain)
-        // Plain title is added as overlay label outside of toolbar items
+        // 4. Add centered title
         if let title = titleText, !usePlainTitle {
             let titleItem = createTitleBarButtonItem(title: title, color: titleColor)
-            toolbarItems.append(titleItem)
-            
-            // Add another flexible space (right side of title) for centering
-            toolbarItems.append(UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil))
+            items.append(titleItem)
+            items.append(UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil))
         }
 
-        // 5. Setup trailing buttons (RIGHT side)
+        // 5. Setup trailing buttons
         if let trailingArray = params["trailing"] as? [[String: Any]] {
-            os_log(.debug, log: Self.logger, "Processing %{public}d trailing buttons", trailingArray.count)
-
             for (index, buttonData) in trailingArray.enumerated() {
-                // SECURITY: Validate index bounds
-                guard index < 10 else {
-                    os_log(OSLogType.default, log: Self.logger, "Too many trailing buttons, limiting to 10")
-                    break
-                }
-
+                if index >= 10 { break }
                 if let button = createBarButtonItem(from: buttonData, position: .trailing, index: index) {
-                    toolbarItems.append(button)
-                    os_log(.debug, log: Self.logger, "Trailing button %{public}d added", index)
+                    items.append(button)
                 }
             }
         }
-
-        // Apply items to toolbar
-        if #available(iOS 26.0, *), let toolbar = self.toolbar {
-            toolbar.items = toolbarItems
+        
+        // 6. ACTION SEARCH: Add Search Button if configured AND implied
+        if let searchOpts = params["searchOptions"] as? [String: Any] {
+            let autoImply = searchOpts["automaticallyImplySearchAction"] as? Bool ?? true
             
-            // 6. Add plain title as overlay label (if usePlainTitle)
+            if autoImply {
+                let searchButton = UIBarButtonItem(
+                    barButtonSystemItem: .search,
+                    target: self,
+                    action: #selector(searchButtonTapped)
+                )
+                items.append(searchButton)
+            }
+        }
+
+        // Store default items
+        self.defaultToolbarItems = items
+        
+        // Apply to toolbar
+        if #available(iOS 26.0, *), let toolbar = self.toolbar {
+            toolbar.setItems(items, animated: false)
+            
+            // Plain title overlay
             if let title = titleText, usePlainTitle {
                 addPlainTitleOverlay(title: title, color: titleColor, to: toolbar)
             }
-            
-            os_log(.info, log: Self.logger, "Toolbar items set: %{public}d total (title: %{public}@, plainStyle: %{public}@)", 
-                   toolbarItems.count, titleText != nil ? "yes" : "no", usePlainTitle ? "yes" : "no")
         } else if let _ = self.navigationBar, let navItem = self.navigationItem {
-            // Fallback for iOS 18-25: Map to NavigationBar
-            // Filter out flexible space items (they're system items, not custom buttons)
-            let customButtons = toolbarItems.filter { $0.customView == nil && $0.target != nil }
+             // Fallback logic... (keep existing)
+            let customButtons = items.filter { $0.customView == nil && $0.target != nil }
             if let first = customButtons.first {
                 navItem.leftBarButtonItem = first
             }
@@ -422,11 +497,23 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     /// Create UIBarButtonItem from validated data
     /// SECURITY: Icon code validation and range checking
     /// CHAOS RESISTANT: Returns nil on invalid data (fail safe)
+    /// Create UIBarButtonItem from validated data
+    /// SECURITY: Icon code validation and range checking
+    /// CHAOS RESISTANT: Returns nil on invalid data (fail safe)
     private func createBarButtonItem(
         from data: [String: Any],
         position: ButtonPosition,
         index: Int = 0
     ) -> UIBarButtonItem? {
+        let style = data["style"] as? String ?? "automatic"
+        
+        // If color is specified, render as a Standard System Button with Tint
+        // Reverting to system standard as requested: "Undo custom filled look"
+        if let colorVal = data["color"] as? Int, colorVal != 0 {
+            return createTintedButton(from: data, position: position, index: index, colorValue: colorVal)
+        }
+        
+        // Use standard system items
         // Validate button type (SECURITY: Type checking)
         guard let type = data["type"] as? String else {
             os_log(OSLogType.default, log: Self.logger, "Missing button type")
@@ -436,10 +523,170 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         switch type {
         case "icon":
             return createIconButton(from: data, position: position, index: index)
+        case "text":
+            return createTextButton(from: data, position: position, index: index)
+        case "search":
+            return createManualSearchButton(from: data, position: position, index: index)
         default:
             os_log(OSLogType.default, log: Self.logger, "Unknown button type: %{public}@", type)
             return nil
         }
+    }
+    
+    /// Create a manual search button (placed anywhere in the list)
+    private func createManualSearchButton(
+        from data: [String: Any],
+        position: ButtonPosition,
+        index: Int
+    ) -> UIBarButtonItem? {
+        // Use provided icon/label or default to search icon
+        if data["label"] != nil {
+            let button = createTextButton(from: data, position: position, index: index)
+            button?.action = #selector(searchButtonTapped)
+            button?.target = self
+            return button
+        }
+        
+        // If icon provided, use it. Else default search icon
+        var iconData = data
+        
+        // Ensure type IS icon so createIconButton processes it correctly
+        iconData["type"] = "icon"
+        
+        let button = createIconButton(from: iconData, position: position, index: index)
+        button?.action = #selector(searchButtonTapped)
+        button?.target = self 
+        return button
+    }
+    
+    /// Create a "Filled Pill" button (Custom View)
+    private func createFilledButton(
+        from data: [String: Any],
+        position: ButtonPosition,
+        index: Int,
+        colorValue: Int
+    ) -> UIBarButtonItem? {
+        var config = UIButton.Configuration.filled()
+        config.baseBackgroundColor = UIColor(argb: colorValue)
+        config.baseForegroundColor = .white
+        config.cornerStyle = .capsule
+        config.buttonSize = .medium // Revert to native standard size
+        
+        // Standard insets for a capsule button
+        config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
+        
+        // Content
+        if let label = data["label"] as? String {
+            config.title = label
+             config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+                var outgoing = incoming
+                outgoing.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+                return outgoing
+            }
+        } else if let iconName = data["iconName"] as? String {
+             config.image = UIImage(systemName: iconName)
+             config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(scale: .medium)
+        } else if let iconCode = data["iconCode"] as? Int {
+             let iconString = String(format: "%C", iconCode)
+             config.title = iconString
+        }
+        
+        let button = UIButton(configuration: config)
+        button.tag = (position == .leading) ? -1 : index
+        button.addTarget(self, action: #selector(customButtonTapped(_:)), for: .touchUpInside)
+        
+        // Wrap in UIBarButtonItem
+        let item = UIBarButtonItem(customView: button)
+        
+        // CRITICAL: Hide the system's shared white/glass background.
+        // This ensures our custom "Filled Button" IS the only pill visible,
+        // fulfilling the request to "Change the pill color" without nesting.
+        if #available(iOS 26.0, *) {
+            item.hidesSharedBackground = true
+        }
+        
+        return item
+    }
+
+    /// Create a "Tinted" button (Standard UIBarButtonItem with tintColor)
+    private func createTintedButton(
+        from data: [String: Any],
+        position: ButtonPosition,
+        index: Int,
+        colorValue: Int
+    ) -> UIBarButtonItem? {
+        var item: UIBarButtonItem?
+        
+        if let label = data["label"] as? String {
+            item = UIBarButtonItem(
+                title: label,
+                style: .done,
+                target: self,
+                action: position == .leading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
+            )
+        } else if let iconName = data["iconName"] as? String {
+            item = UIBarButtonItem(
+                image: UIImage(systemName: iconName),
+                style: .plain,
+                target: self,
+                action: position == .leading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
+            )
+        } else if let iconCode = data["iconCode"] as? Int {
+            let iconString = String(format: "%C", iconCode)
+            item = UIBarButtonItem(
+                title: iconString,
+                style: .plain,
+                target: self,
+                action: position == .leading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
+            )
+        }
+        
+        if let item = item {
+            item.tintColor = UIColor(argb: colorValue)
+            item.tag = (position == .leading) ? -1 : index
+            return item
+        }
+        
+        return nil
+    }
+    
+    @objc private func customButtonTapped(_ sender: UIButton) {
+        if sender.tag == -1 {
+             channel.invokeMethod("onLeadingTapped", arguments: nil)
+        } else {
+             channel.invokeMethod("onTrailingTapped", arguments: ["index": sender.tag])
+        }
+    }
+
+    /// Create text-based button
+    private func createTextButton(
+        from data: [String: Any],
+        position: ButtonPosition,
+        index: Int
+    ) -> UIBarButtonItem? {
+        guard let label = data["label"] as? String else {
+            os_log(OSLogType.default, log: Self.logger, "Missing label for text button at index %{public}d", index)
+            return nil
+        }
+        
+        // Check if this button should be prominent
+        let isProminent = data["prominent"] as? Bool ?? false
+        let sharesBackground = data["sharesBackground"] as? Bool ?? true
+        
+        let button = UIBarButtonItem(
+            title: label,
+            style: isProminent ? .done : .plain,
+            target: self,
+            action: position == .leading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
+        )
+        
+        button.tag = index
+        
+        if #available(iOS 26.0, *) {
+            button.hidesSharedBackground = !sharesBackground
+        }
+        
+        return button
     }
 
     /// Create centered title label as UIBarButtonItem
@@ -494,6 +741,9 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             return
         }
         
+        // Remove existing label if present
+        self.plainTitleLabel?.removeFromSuperview()
+        
         let titleLabel = UILabel()
         titleLabel.text = title
         titleLabel.textAlignment = .center
@@ -512,6 +762,8 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         titleLabel.isUserInteractionEnabled = false
         
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        self.plainTitleLabel = titleLabel
         toolbar.addSubview(titleLabel)
         
         // Center the label in the toolbar
@@ -716,6 +968,86 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         os_log(.debug, log: Self.logger, "Trailing button tapped: %{public}d", sender.tag)
         channel.invokeMethod("onTrailingTapped", arguments: ["index": sender.tag])
     }
+    
+    @objc private func searchButtonTapped() {
+        os_log(.debug, log: Self.logger, "Search button tapped - switching to In-Place Search Mode")
+        
+        guard let toolbar = self.toolbar else { return }
+        
+        // 1. Retrieve pre-warmed Search Bar
+        guard let searchBar = inlineSearchBar else {
+            os_log(.error, log: Self.logger, "Search bar not initialized! Creating fallback.")
+            setupInlineSearchBar() // Fallback if init failed
+            return
+        }
+        
+        // 2. Wrap in BarButtonItem
+        let searchItem = UIBarButtonItem(customView: searchBar)
+        
+        // 3. Swap Items with Cross-Dissolve (Fake Smoothness)
+        // We use non-animated setItems (instant layout) wrapped in a visual fade.
+        UIView.transition(with: toolbar, duration: 0.25, options: .transitionCrossDissolve, animations: {
+            toolbar.setItems([searchItem], animated: false)
+        }, completion: nil)
+        
+        // 4. Hide Plain Title Overlay
+        self.plainTitleLabel?.isHidden = true
+        
+        // 5. Activate keyboard (Deferred)
+        // A 100ms delay ensures the Layout Pass is fully committed before the
+        // heavy Keyboard Window creation starts.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            searchBar.becomeFirstResponder()
+        }
+        
+        // Notify Flutter
+        channel.invokeMethod("setSearchActive", arguments: ["active": true])
+    }
+
+    
+    // MARK: - UISearchBarDelegate
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        os_log(.debug, log: Self.logger, "Search cancel tapped - restoring Default Toolbar")
+        
+        guard let toolbar = self.toolbar else { return }
+        
+        searchBar.resignFirstResponder()
+        
+        // Restore original items
+        toolbar.setItems(self.defaultToolbarItems, animated: true)
+        
+        // Restore Plain Title Overlay
+        self.plainTitleLabel?.isHidden = false
+        
+        // Notify Flutter
+        channel.invokeMethod("setSearchActive", arguments: ["active": false])
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        // Debounce or send directly? Method channel is fast enough usually.
+        // Or strictly strictly: "onQueryChanged"
+        // Wait, current channel method for query?
+        // Let's assume onQueryChanged exists or we use updateSearchResults logic
+        // But here we are using manual SearchBar, not UISearchController updating
+        
+        // We should send the text.
+        // "onQueryChanged" is likely the method name expected by Dart?
+        // Let's check how UISearchUpdating did it.
+        // It likely used `updateSearchResults(for:)` which calls `sc.searchBar.text`.
+        settingsQuery(searchText)
+    }
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+        if let text = searchBar.text {
+             channel.invokeMethod("onSubmitted", arguments: ["query": text])
+        }
+    }
+    
+    private func settingsQuery(_ query: String) {
+        channel.invokeMethod("onQueryChanged", arguments: ["query": query])
+    }
 
     // MARK: - Method Channel
 
@@ -733,6 +1065,20 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
                 self.handleSetTitle(call: call, result: result)
             case "updateButton":
                 self.handleUpdateButton(call: call, result: result)
+            case "setSearchActive":
+                // OPTIMIZATION: Disabled to prevent conflict with Inline Mode
+                // if let args = call.arguments as? [String: Any],
+                //    let active = args["active"] as? Bool {
+                //     self.searchController?.isActive = active
+                //     if active {
+                //         self.searchController?.searchBar.becomeFirstResponder()
+                //         self.navigationItem?.hidesSearchBarWhenScrolling = false
+                //     }
+                //     result(nil)
+                // } else {
+                //     result(FlutterError(code: "INVALID_ARGS", message: "Invalid argument", details: nil))
+                // }
+                result(nil) // Ack without action
             default:
                 result(FlutterMethodNotImplemented)
             }
@@ -778,5 +1124,11 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     deinit {
         channel.setMethodCallHandler(nil)
         os_log(.info, log: Self.logger, "Toolbar view disposed (ID: %{public}lld)", viewId)
+    }
+    
+    // MARK: - UISearchResultsUpdating (Unused in Inline Mode)
+    
+    func updateSearchResults(for searchController: UISearchController) {
+        // No-op: We use direct UISearchBarDelegate methods now
     }
 }

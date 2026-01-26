@@ -44,13 +44,14 @@ class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactor
 /// - Liquid Glass fallback for iOS 18-25
 /// - Standard fallback for older versions
 @available(iOS 15.0, *)
-class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView, UINavigationBarDelegate {
+class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView, UINavigationBarDelegate, UISearchResultsUpdating, UISearchBarDelegate {
     private var _view: UIView
     private var navigationBar: UINavigationBar!
     private var navigationItem: UINavigationItem!
     private var messenger: FlutterBinaryMessenger
     private let channel: FlutterMethodChannel
     private var topPadding: CGFloat = 0
+    private var searchController: UISearchController?
     
     // STRICT RUNTIME CHECK
     private let isIOS26: Bool
@@ -111,23 +112,62 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         // Setup appearance based on iOS version
         setupTransparentAppearance()
 
-        // Parse configuration from arguments
-        if let params = args as? [String: Any] {
-            configureFromParams(params)
+        // Check for search options to determine layout strategy
+        var hasSearch = false
+        var searchOptions: [String: Any]?
+        if let params = args as? [String: Any], let opts = params["searchOptions"] as? [String: Any] {
+            hasSearch = true
+            searchOptions = opts
         }
 
         navigationBar.items = [navigationItem]
-
-        // Add to container view
         _view.addSubview(navigationBar)
 
-        // Auto layout constraints: Pin to SAFE AREA
-        NSLayoutConstraint.activate([
-            navigationBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-            navigationBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            navigationBar.topAnchor.constraint(equalTo: _view.safeAreaLayoutGuide.topAnchor), // Pin to Safe Area for content safety
-            navigationBar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
-        ])
+        if hasSearch {
+            // COMPOSITE LAYOUT: Manually place NavBar and SearchBar
+            print("📱 [AppBar] Mode: Composite (NavBar + Explicit SearchBar)")
+            
+            // 1. Setup Search Controller & Bar
+            setupSearchController(options: searchOptions!)
+            
+            guard let searchBar = searchController?.searchBar else { return }
+            searchBar.translatesAutoresizingMaskIntoConstraints = false
+            _view.addSubview(searchBar)
+            
+            // 2. Constraints for NavBar (Fixed 44pt height, pinned using explicit padding)
+            // Note: We use explicit topPadding passed from Flutter because UiKitView's safeAreaLayoutGuide 
+            // can be unreliable during initial layout or resizing.
+            NSLayoutConstraint.activate([
+                navigationBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+                navigationBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+                navigationBar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
+                navigationBar.heightAnchor.constraint(equalToConstant: 44.0)
+            ])
+            
+            // 3. Constraints for SearchBar (Pinned below NavBar)
+            NSLayoutConstraint.activate([
+                searchBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+                searchBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+                searchBar.topAnchor.constraint(equalTo: navigationBar.bottomAnchor),
+                searchBar.heightAnchor.constraint(equalToConstant: 52.0)
+            ])
+            
+        } else {
+            // STANDARD LAYOUT: Navbar fills the space (using explicit padding)
+            print("📱 [AppBar] Mode: Standard")
+            
+            NSLayoutConstraint.activate([
+                navigationBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+                navigationBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+                navigationBar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
+                navigationBar.heightAnchor.constraint(equalToConstant: 44.0)
+            ])
+        }
+
+        // Parse remaining configuration (Title, Buttons)
+        if let params = args as? [String: Any] {
+            configureFromParams(params)
+        }
     }
 
     private func setupBackgroundBlur() {
@@ -174,6 +214,46 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
             edgeLine.bottomAnchor.constraint(equalTo: _view.bottomAnchor),
             edgeLine.heightAnchor.constraint(equalToConstant: 0.5) // Hairline
         ])
+    }
+    
+    private func setupSearchController(options: [String: Any]) {
+        let sc = UISearchController(searchResultsController: nil)
+        sc.searchResultsUpdater = self
+        sc.searchBar.delegate = self
+        sc.obscuresBackgroundDuringPresentation = false
+        
+        if let placeholder = options["placeholder"] as? String {
+            sc.searchBar.placeholder = placeholder
+        } else {
+            sc.searchBar.placeholder = "Search"
+        }
+        
+        if let hides = options["hidesNavigationBarDuringPresentation"] as? Bool {
+            sc.hidesNavigationBarDuringPresentation = hides
+        }
+        
+        if let showsCancel = options["automaticallyShowsCancelButton"] as? Bool {
+            sc.automaticallyShowsCancelButton = showsCancel
+        }
+        
+        // Apply Liquid Glass aesthetic to search bar
+        if #available(iOS 13.0, *) {
+            let textField = sc.searchBar.searchTextField
+            textField.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.2)
+            textField.layer.cornerRadius = 10
+            textField.clipsToBounds = true
+            
+            // Enhance blur interaction
+            sc.searchBar.backgroundImage = UIImage() // Remove default background
+        }
+        
+        self.searchController = sc
+        // self.navigationItem.searchController = sc // MANUAL MODE: We add view manually
+        
+        // Manual mode doesn't rely on hidesSearchBarWhenScrolling
+        // We just ensure the searchBar is visible in setupNavigationBar
+        
+        print("📱 [AppBar-Search] UISearchController created (Manual Layout)")
     }
     
     /// Setup "iOS 26 Liquid Glass" Appearance
@@ -226,8 +306,22 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         }
 
         // Set large title preference
-        if let largeTitle = params["largeTitle"] as? Bool {
-            navigationBar.prefersLargeTitles = largeTitle
+        // CRITICAL FIX: If search is active, we MUST enable large titles on the bar
+        // for the search bar to appear inline. We control the title size itself via largeTitleDisplayMode.
+        let hasSearch = params["searchOptions"] != nil
+        let wantsLargeTitle = params["largeTitle"] as? Bool ?? false
+        
+        if hasSearch || wantsLargeTitle {
+            navigationBar.prefersLargeTitles = true
+        } else {
+            navigationBar.prefersLargeTitles = false
+        }
+        
+        // Control actual title display
+        if wantsLargeTitle {
+            navigationItem.largeTitleDisplayMode = .always
+        } else {
+            navigationItem.largeTitleDisplayMode = .never
         }
 
         // Setup leading button
@@ -337,10 +431,39 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
                 } else {
                     result(FlutterError(code: "INVALID_ARGS", message: "Invalid argument", details: nil))
                 }
+                
+            case "setSearchActive":
+                if let args = call.arguments as? [String: Any],
+                   let active = args["active"] as? Bool {
+                    self.searchController?.isActive = active
+                    if active {
+                        self.searchController?.searchBar.becomeFirstResponder()
+                        self.navigationItem.hidesSearchBarWhenScrolling = false
+                    }
+                    result(nil)
+                } else {
+                    result(FlutterError(code: "INVALID_ARGS", message: "Invalid argument", details: nil))
+                }
 
             default:
                 result(FlutterMethodNotImplemented)
             }
         }
+    }
+    
+    // MARK: - UISearchResultsUpdating & UISearchBarDelegate
+    
+    func updateSearchResults(for searchController: UISearchController) {
+        guard let text = searchController.searchBar.text else { return }
+        channel.invokeMethod("onSearchQueryChanged", arguments: ["query": text])
+    }
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        guard let text = searchBar.text else { return }
+        channel.invokeMethod("onSearchSubmitted", arguments: ["query": text])
+    }
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        channel.invokeMethod("onSearchCancelled", arguments: nil)
     }
 }

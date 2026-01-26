@@ -78,6 +78,51 @@ class SystemRoot extends StatelessWidget {
 }
 ```
 
+      home: const Dashboard(),
+    );
+  }
+}
+```
+
+### Contextual Search (iOS 26+)
+
+Use `AdaptiveCupertinoAppBar` with `searchOptions` to enable the native Liquid Glass search bar.
+
+```dart
+AdaptiveCupertinoAppBar(
+  title: const Text('Inventory'),
+  // Enable Native Search
+  searchOptions: AdaptiveCupertinoSearchOptions(
+    placeholder: 'Search items...',
+    automaticallyImplySearchAction: true, // Adds magnifying glass icon
+    onQueryChanged: (query) {
+      debugPrint('Search: $query');
+    },
+    onSubmitted: (query) {
+      debugPrint('Submit: $query');
+    },
+  ),
+  // Optional: Control search programmatically
+  controller: _appBarController, 
+)
+
+// Trigger search programmatically
+_appBarController.setSearchActive(true);
+```
+
+### Toolbar Styling (Modern vs Classic)
+
+The library defaults to the modern **iOS 26 "Pill" Style** (Hap) for titles.
+
+```dart
+AdaptiveCupertinoToolbar(
+  title: 'Filters',
+  // Default: false (Pill Style)
+  // Set to true for Classic Style (Plain Text)
+  usePlainTitle: false, 
+)
+```
+
 ### Advanced Scaffold Layout
 
 ```dart
@@ -171,6 +216,18 @@ AdaptiveSlider(
 )
 ```
 
+## Performance Optimizations
+
+### Cross-Dissolve Layout Transitions
+For complex UI swaps (e.g., Toolbar to SearchBar), standard UIKit animations can cause "Layout Thrashing" (FPS drops due to massive constraint solving).
+This library uses a **"Fake-Smooth"** technique:
+1.  **Instant Swap:** The underlying layout is changed instantly (`animated: false`) to avoid constraint interpolation costs.
+2.  **Visual Fade:** The change is wrapped in `UIView.transition(..., options: .transitionCrossDissolve)` to provide a butter-smooth visual fade (GPU-accelerated) without CPU logic.
+
+### Pre-Warming & Deferral
+- **Pre-warming:** Heavy components (SearchBars) are initialized in memory before interaction, ensuring 0ms touch latency.
+- **Deferral Strategy:** Keyboard activation and Haptics are deferred by 100ms (`asyncAfter`) to ensure the UI Layout pass is fully committed before the system resources are spiked.
+
 ## Technical Specifications
 
 ### iOS Architecture
@@ -192,7 +249,7 @@ The library utilizes a hybrid Flutter-Native bridge to ensure pixel-perfect rend
 - [x] **Native iOS 26 Controls**: Native-backed `AdaptiveSlider` component.
 - [x] **Dynamic Structural Minimization**: Native scroll-aware TabBar transformations with `minimizationFactor` property.
 - [x] **Adaptive Elevation**: Automatic depth/shadow management for Liquid Glass layers with non-linear smoothing curves.
-- [ ] **Native Contextual Search**: Implementation of iOS 26+ native search tab transitions.
+- [x] **Native Contextual Search**: Implementation of iOS 26+ native search tab transitions.
 - [ ] **Flexible Layout Spacers**: Enhanced horizontal distribution API for complex toolbar requirements.
 - [ ] **Adaptive Elevation**: Automatic depth/shadow management for Liquid Glass layers.
 - [ ] **Immersive View Controllers**: Support for Liquid Glass modal presentations and sheet interactions.

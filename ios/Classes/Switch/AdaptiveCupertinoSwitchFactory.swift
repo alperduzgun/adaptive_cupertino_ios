@@ -91,14 +91,8 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
 
         // 3. Enabled State
         nativeSwitch.isEnabled = (params["enabled"] as? Bool) ?? true
-
-        // 4. iOS 26 "Liquid Glass" specific enhancements
-        if #available(iOS 26.0, *) {
-             applyGlassDesign()
-        } else if IOSVersionDetector.isIOS26OrNewer() {
-             applyGlassDesign()
-        }
-
+        
+        // 4. Add to hierarchy FIRST (Critical for constraints in applyGlassDesign)
         _containerView.addSubview(nativeSwitch)
         
         // Center the switch in the container
@@ -106,6 +100,16 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
             nativeSwitch.centerXAnchor.constraint(equalTo: _containerView.centerXAnchor),
             nativeSwitch.centerYAnchor.constraint(equalTo: _containerView.centerYAnchor)
         ])
+
+        // 5. iOS 26 "Liquid Glass" specific enhancements
+        // Now safe to call, as nativeSwitch is in the hierarchy
+        if #available(iOS 26.0, *) {
+             applyGlassDesign()
+        } else if IOSVersionDetector.isIOS26OrNewer() {
+             applyGlassDesign()
+        }
+
+        nativeSwitch.addTarget(self, action: #selector(valueChanged), for: .valueChanged)
 
         nativeSwitch.addTarget(self, action: #selector(valueChanged), for: .valueChanged)
         

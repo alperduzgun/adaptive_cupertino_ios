@@ -42,7 +42,7 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
   /// Use plain text title (no pill/bubble background).
   /// When true: Title appears as plain text (recommended by Apple HIG)
   /// When false: Title appears in iOS 26 glass pill style
-  /// Default: true
+  /// Default: false
   final bool usePlainTitle;
 
   /// Custom color for the title text.
@@ -59,7 +59,7 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
     this.trailingActions,
     this.height = 44.0,
     this.enableLiquidGlass = true,
-    this.usePlainTitle = true,
+    this.usePlainTitle = false,
     this.titleColor,
   })  : assert(
           title == null || title.length <= 100,

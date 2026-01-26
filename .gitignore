@@ -1,0 +1,11 @@
+# Agent Rules
+GEMINI_RULES.md
+.cursorrules
+
+# Miscellaneous
+.DS_Store
+.dart_tool/
+build/
+.pub/
+.packages
+pubspec.lock

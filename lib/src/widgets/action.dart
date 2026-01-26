@@ -1,4 +1,20 @@
 import 'package:flutter/widgets.dart';
+import '../util/serialization.dart';
+
+/// Style configuration for [AdaptiveCupertinoAction].
+enum AdaptiveActionButtonStyle {
+  /// Automatically choose based on platform context.
+  automatic,
+
+  /// A filled, capsule-shaped button with background color (Stand-alone pill).
+  filled,
+
+  /// A standard button with tinted text/icon (Groups with other items).
+  tinted,
+
+  /// A plain, unstyled system button.
+  plain,
+}
 
 /// A platform-agnostic action model for native UI components (AppBar, Toolbar).
 ///
@@ -17,13 +33,24 @@ class AdaptiveCupertinoAction {
   /// Whether this action is destructive (e.g. delete).
   final bool isDestructive;
 
-  /// Whether this action should share background with adjacent actions (iOS 26 grouping).
-  ///
-  /// Defaults to true (grouped). Set to false to force a separate pill.
+  /// The shared background preference.
   final bool sharesBackground;
 
   /// The SF Symbol name to use (preferred over IconData for iOS).
   final String? sfSymbolName;
+
+  /// The button color (for "Glass" or "Filled" style buttons).
+  ///
+  /// If provided, the button will use a filled/tinted style with this color.
+  final Color? color;
+
+  /// Whether this action triggers the native search mode.
+  ///
+  /// If true, this button will act as the search toggle.
+  final bool isSearchAction;
+
+  /// The style of the button (Filled, Tinted, etc.).
+  final AdaptiveActionButtonStyle style;
 
   const AdaptiveCupertinoAction({
     this.icon,
@@ -32,15 +59,37 @@ class AdaptiveCupertinoAction {
     this.isDestructive = false,
     this.sfSymbolName,
     this.sharesBackground = true,
+    this.color,
+    this.isSearchAction = false,
+    this.style = AdaptiveActionButtonStyle.automatic,
   });
 
   /// Convert to map for platform channel.
   Map<String, dynamic> toMap() {
     final Map<String, dynamic> data = {};
 
-    if (sfSymbolName != null) {
+    // Pass style
+    data['style'] = style.name;
+
+    // Auto-resolve SF Symbol from Icon if manual override is missing
+    // Utilizes global mapping from WidgetSerializer
+    final effectiveSfSymbol =
+        sfSymbolName ?? WidgetSerializer.getSfSymbolName(icon);
+
+    if (isSearchAction) {
+      data['type'] = 'search';
+      // Allow custom icon/label for search button
+      if (effectiveSfSymbol != null) {
+        data['iconName'] = effectiveSfSymbol;
+      } else if (icon != null) {
+        data['iconCode'] = icon!.codePoint;
+        data['iconFamily'] = icon!.fontFamily;
+      } else if (label != null) {
+        data['label'] = label; // Text based search button
+      }
+    } else if (effectiveSfSymbol != null) {
       data['type'] = 'icon';
-      data['iconName'] = sfSymbolName;
+      data['iconName'] = effectiveSfSymbol;
     } else if (icon != null) {
       data['type'] = 'icon';
       data['iconCode'] = icon!.codePoint;
@@ -52,6 +101,10 @@ class AdaptiveCupertinoAction {
 
     if (isDestructive) {
       data['isDestructive'] = true;
+    }
+
+    if (color != null) {
+      data['color'] = color!.value;
     }
 
     // Pass sharing preference (native uses inverse 'hidesSharedBackground', but we pass positive logic here)
