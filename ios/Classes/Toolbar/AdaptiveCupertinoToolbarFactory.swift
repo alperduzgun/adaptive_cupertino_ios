@@ -167,11 +167,15 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         // Report if changed
         if abs(calculatedHeight - lastReportedHeight) > 0.5 {
             lastReportedHeight = calculatedHeight
-            // print("📱 [Toolbar] Reporting Layout Update. Height: \(calculatedHeight), BottomPadding: \(bottomPadding)")
+            // ABSOLUTE HEIGHT PROTOCOL:
+            // We report the total visual height (including any bottom system padding it covers).
+            let reportHeight = calculatedHeight
+            
+            print("📱 [Toolbar] Reporting Layout Update. Height: \(reportHeight), BottomPadding: \(bottomPadding)")
             
             // Channel: "onLayoutChanged"
              channel.invokeMethod("onLayoutChanged", arguments: [
-                "height": calculatedHeight,
+                "height": reportHeight,
                 "safeArea": bottomPadding,
                 "isTop": false // Toolbar is bottom
             ])
@@ -311,7 +315,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         // Apply Liquid Glass aesthetic to search bar
         if #available(iOS 13.0, *) {
             let textField = sc.searchBar.searchTextField
-            textField.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.2)
+            textField.backgroundColor = .secondarySystemFill // More visible on white backgrounds
             textField.layer.cornerRadius = 10
             textField.clipsToBounds = true
             

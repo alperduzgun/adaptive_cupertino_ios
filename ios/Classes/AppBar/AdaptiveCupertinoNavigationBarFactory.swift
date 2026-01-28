@@ -125,13 +125,18 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         // If the calculated height is significantly different from last report, send it.
         // Use a small epsilon to avoid float jitter loops
         if abs(maxY - lastReportedHeight) > 0.5 {
-            lastReportedHeight = maxY
-            print("📱 [AppBar] Reporting Layout Update. Height: \(maxY), TopPadding: \(topPadding)")
+            // ABSOLUTE HEIGHT PROTOCOL:
+            // We report the total visual height (including any top system padding it covers).
+            // This simplifies Dart-side math as they can use this as a direct offset.
+            let reportHeight = maxY
+            lastReportedHeight = maxY // We still use absolute Y for de-bouncing
+            
+            print("📱 [AppBar] Reporting Layout Update. Height: \(reportHeight), SafeTop: \(topPadding)")
             
             // Channel: "onLayoutChanged"
             // Args: { "height": double, "safeArea": double }
             channel.invokeMethod("onLayoutChanged", arguments: [
-                "height": maxY,
+                "height": reportHeight,
                 "safeArea": topPadding
             ])
         }
@@ -291,7 +296,7 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         // Apply Liquid Glass aesthetic to search bar
         if #available(iOS 13.0, *) {
             let textField = sc.searchBar.searchTextField
-            textField.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.2)
+            textField.backgroundColor = .secondarySystemFill // More visible on white backgrounds
             textField.layer.cornerRadius = 10
             textField.clipsToBounds = true
             

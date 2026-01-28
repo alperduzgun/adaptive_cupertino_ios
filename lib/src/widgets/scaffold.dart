@@ -10,7 +10,9 @@ import 'layout_notification.dart';
 
 /// Base breathing room added to the top of the content
 /// to prevent visual cramping under the Liquid Glass header.
-const double _kLiquidGlassBreathingRoom = 20.0;
+/// Set to 0.0 as native bars now report accurate logical heights
+/// including their own internal safe margins.
+const double _kLiquidGlassBreathingRoom = 8.0;
 
 /// Adaptive scaffold that provides platform-appropriate layout.
 ///
@@ -71,7 +73,7 @@ class AdaptiveScaffold extends StatefulWidget {
     this.scaffoldKey,
     this.floatingActionButton,
     this.resizeToAvoidBottomInset,
-    this.topPaddingAdjustment = 20.0,
+    this.topPaddingAdjustment = 0.0,
   }) : super(key: key);
 
   @override
@@ -101,11 +103,19 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
     if (widget.appBar == null) {
       _topObstruction = 0.0;
     } else if (widget.appBar != oldWidget.appBar && !_initialized) {
-      _topObstruction = widget.appBar?.preferredSize.height ?? 0.0;
+      // PRE-WARM INITIALIZATION:
+      // If we don't have a report yet, estimate the total height.
+      // Standard: 44.0 (AppBar) + ~47.0 (StatusBar) = ~91.0
+      _topObstruction = (widget.appBar?.preferredSize.height ?? 0.0) +
+          MediaQuery.paddingOf(context).top;
     }
 
     if (widget.bottomNavigationBar == null) {
       _bottomObstruction = 0.0;
+    } else if (widget.bottomNavigationBar != oldWidget.bottomNavigationBar &&
+        !_initialized) {
+      // Standard: ~34.0 (Home Indicator) + ~50.0 (Toolbar) = ~84.0
+      _bottomObstruction = 50.0 + MediaQuery.paddingOf(context).bottom;
     }
   }
 
@@ -157,18 +167,13 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
                     final mediaQuery = MediaQuery.of(context);
                     final padding = mediaQuery.padding;
 
-                    // Inject padding so child widgets know about the obstructions
-                    // NATIVE BIDIRECTIONAL LAYOUT:
-                    // The reported obstruction heights (*Obstruction values) include the safe area (Status Bar / Home Indicator).
-                    // Therefore, we should use the MAX of the system padding and our obstruction,
-                    // rather than adding them (which would double-count).
-                    final topPadding =
-                        (_topObstruction > 0 ? _topObstruction : padding.top) +
-                            widget.topPaddingAdjustment +
-                            _kLiquidGlassBreathingRoom;
-                    final bottomPadding = _bottomObstruction > 0
-                        ? _bottomObstruction
-                        : padding.bottom;
+                    // ABSOLUTE HEIGHT PROTOCOL:
+                    // Native bars now report their total visual height (including status bar/home indicator).
+                    // This simplifies everything: we just use the reported values as direct offsets.
+                    final topPadding = _topObstruction +
+                        widget.topPaddingAdjustment +
+                        _kLiquidGlassBreathingRoom;
+                    final bottomPadding = _bottomObstruction;
 
                     // AUTO-OFFSET LOGIC (Global Fix):
                     // If extendBodyBehindAppBar is FALSE (default), we must manually push the content down
@@ -213,14 +218,15 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
                   top: 0,
                   left: 0,
                   right: 0,
-                  // We wrap the AppBar in a MediaQuery that restores the ORIGINAL top padding
-                  // otherwise it might get double-padded if it uses SafeArea internally while reading our modified MQ
-                  // Actually, KAppBar/CupertinoNavigationBar usually explicitly handle status bar.
-                  // If we don't restore, they might see the *injected* padding and shift down?
-                  // `CupertinoNavigationBar` uses `MediaQuery.of(context).padding.top` to draw background.
-                  // If we are at the top level, `context` here is the *parent* MQ (unmodified).
-                  // So appBar is built with unmodified MQ. This is CORRECT.
-                  child: widget.appBar!,
+                  // We provide the system's actual hardware padding (viewPadding)
+                  // to the AppBar so it can correctly normalize its native reporting,
+                  // even if the local 'padding' has been consumed by a parent shell.
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      padding: MediaQuery.viewPaddingOf(context),
+                    ),
+                    child: widget.appBar!,
+                  ),
                 ),
 
               // 3. Custom Bottom Navigation Bar at the bottom
@@ -229,7 +235,12 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: widget.bottomNavigationBar!,
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      padding: MediaQuery.viewPaddingOf(context),
+                    ),
+                    child: widget.bottomNavigationBar!,
+                  ),
                 ),
 
               // 4. Floating Action Button
