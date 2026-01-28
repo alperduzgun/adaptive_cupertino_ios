@@ -125,25 +125,31 @@ AdaptiveCupertinoToolbar(
 
 ### Advanced Scaffold Layout
 
+`AdaptiveScaffold` implements a **Bidirectional Layout Protocol** (Absolute Height) to ensure mathematically perfect alignment between native iOS bars and Flutter content.
+
+- **Absolute Height Reporting**: Native bars report their total visual obstruction (including status bar/safe areas).
+- **Auto-Offsetting**: By default, the scaffold body is automatically padded to start below the bars.
+- **Full-Bleed Support**: Set `extendBodyBehindAppBar: true` for the "Liquid Glass" effect. In this mode, use `context.appBarPadding` (exposed via `MediaQuery`) to manually position your content.
+
 ```dart
 AdaptiveScaffold(
+  extendBodyBehindAppBar: true, // Content flows behind bars
   appBar: AdaptiveCupertinoAppBar(
-    title: const Text('Architecture Overview'),
+    title: const Text('Architecture'),
   ),
-  bottomNavigationBar: AdaptiveCupertinoTabBar(
-    items: const [
-      AdaptiveCupertinoTabItem(
-        label: 'Workspace',
-        icon: CupertinoIcons.house_fill,
+  body: Column(
+    children: [
+      // Standard spacer that adapts to dynamic bar heights
+      Builder(
+        builder: (context) => SizedBox(height: context.appBarPadding),
       ),
+      const Expanded(child: DashboardContent()),
     ],
-    currentIndex: 0,
-    onTap: (index) => _handleNavigation(index),
-    minimizationFactor: _scrollOffset, // 0.0 to 1.0 for dynamic TabBar sizing
   ),
-  body: const RepositoryStream(),
 )
 ```
+
+> **Performance Note**: The protocol includes "Pre-warm" logic that estimates initial heights (~91pt for AppBar) to prevent visual jumps during the first frame before native layout completes.
 
 ### Dynamic TabBar Minimization
 
