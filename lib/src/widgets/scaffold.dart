@@ -6,11 +6,17 @@ import 'package:flutter/material.dart';
 import 'app_bar.dart';
 import 'tab_bar.dart';
 
+import 'layout_notification.dart';
+
+/// Base breathing room added to the top of the content
+/// to prevent visual cramping under the Liquid Glass header.
+const double _kLiquidGlassBreathingRoom = 20.0;
+
 /// Adaptive scaffold that provides platform-appropriate layout.
 ///
 /// Uses CupertinoPageScaffold on iOS and Material Scaffold on Android.
 /// Automatically handles AppBar and BottomNavigationBar with adaptive widgets.
-class AdaptiveScaffold extends StatelessWidget {
+class AdaptiveScaffold extends StatefulWidget {
   /// The primary content of the scaffold.
   final Widget body;
 
@@ -47,6 +53,14 @@ class AdaptiveScaffold extends StatelessWidget {
   /// Defaults to true.
   final bool? resizeToAvoidBottomInset;
 
+  /// Additional top padding to apply to the body content.
+  ///
+  /// Defaults to 20.0.
+  ///
+  /// Note: A base breathing room of 20.0px is ALWAYS added on top of this value.
+  /// So effectively: NativeBar + 20.0 + topPaddingAdjustment.
+  final double topPaddingAdjustment;
+
   const AdaptiveScaffold({
     Key? key,
     required this.body,
@@ -57,7 +71,55 @@ class AdaptiveScaffold extends StatelessWidget {
     this.scaffoldKey,
     this.floatingActionButton,
     this.resizeToAvoidBottomInset,
+    this.topPaddingAdjustment = 20.0,
   }) : super(key: key);
+
+  @override
+  State<AdaptiveScaffold> createState() => _AdaptiveScaffoldState();
+}
+
+class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
+  // Dynamic layout state
+  double _topObstruction = 0.0;
+  double _bottomObstruction = 0.0;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with preferred sizes to avoid jump
+    _topObstruction = widget.appBar?.preferredSize.height ?? 0.0;
+    _bottomObstruction = widget.bottomNavigationBar != null ? 50.0 : 0.0;
+  }
+
+  @override
+  void didUpdateWidget(AdaptiveScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update defaults if widget changes and we haven't received dynamic updates yet?
+    // Actually, if we have dynamic updates, we should trust them.
+    // But if appBar is removed (null), we should reset.
+    if (widget.appBar == null) {
+      _topObstruction = 0.0;
+    } else if (widget.appBar != oldWidget.appBar && !_initialized) {
+      _topObstruction = widget.appBar?.preferredSize.height ?? 0.0;
+    }
+
+    if (widget.bottomNavigationBar == null) {
+      _bottomObstruction = 0.0;
+    }
+  }
+
+  bool _handleLayoutNotification(AdaptiveLayoutNotification notification) {
+    setState(() {
+      _initialized = true;
+      if (notification.isTop) {
+        _topObstruction = notification.height;
+      } else {
+        _bottomObstruction = notification.height;
+      }
+    });
+    return true; // Stop bubbling
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,44 +135,115 @@ class AdaptiveScaffold extends StatelessWidget {
   Widget _buildIOSScaffold(BuildContext context) {
     // Standard Flutter Way for Liquid Glass: Use a Stack to layer the AppBar over the body.
     // This allows the body content to start at the top (under the notch) and flow behind the bar.
-    return CupertinoPageScaffold(
-      backgroundColor: backgroundColor ?? CupertinoColors.systemBackground,
-      resizeToAvoidBottomInset: resizeToAvoidBottomInset ?? true,
-      child: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          children: [
-            // 1. The primary content (Full screen, including area behind bars)
-            Positioned.fill(child: body),
+    // standard height for Cupertino Tab Bar is 50.0
+    // final double topObstruction = appBar?.preferredSize.height ?? 0.0;
+    // final double bottomObstruction = bottomNavigationBar != null ? 50.0 : 0.0;
 
-            // 2. The AppBar as an overlay at the top
-            if (appBar != null)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: appBar!,
+    return NotificationListener<AdaptiveLayoutNotification>(
+      onNotification: _handleLayoutNotification,
+      child: CupertinoPageScaffold(
+        backgroundColor:
+            widget.backgroundColor ?? CupertinoColors.systemBackground,
+        resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset ?? true,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              // 1. The primary content (Full screen, including area behind bars)
+              // 1. The primary content (Full screen, including area behind bars)
+              Positioned.fill(
+                child: Builder(
+                  builder: (context) {
+                    final mediaQuery = MediaQuery.of(context);
+                    final padding = mediaQuery.padding;
+
+                    // Inject padding so child widgets know about the obstructions
+                    // NATIVE BIDIRECTIONAL LAYOUT:
+                    // The reported obstruction heights (*Obstruction values) include the safe area (Status Bar / Home Indicator).
+                    // Therefore, we should use the MAX of the system padding and our obstruction,
+                    // rather than adding them (which would double-count).
+                    final topPadding =
+                        (_topObstruction > 0 ? _topObstruction : padding.top) +
+                            widget.topPaddingAdjustment +
+                            _kLiquidGlassBreathingRoom;
+                    final bottomPadding = _bottomObstruction > 0
+                        ? _bottomObstruction
+                        : padding.bottom;
+
+                    // AUTO-OFFSET LOGIC (Global Fix):
+                    // If extendBodyBehindAppBar is FALSE (default), we must manually push the content down
+                    // to simulate standard Scaffold behavior.
+                    // If TRUE, we leave it at 0, allowing content to flow behind (Liquid Glass).
+                    final double effectiveContentTopPadding =
+                        widget.extendBodyBehindAppBar ? 0.0 : topPadding;
+
+                    // For the injected MediaQuery, we typically want to tell the child:
+                    // "Here is the safe area you SHOULD respect if you were drawing from the top".
+                    // However, if we've already pushed them down via Padding, reporting the top padding again
+                    // in MediaQuery might cause them to double-pad (e.g. ListView).
+                    // But standard Scaffold behaves this way (Body is offset, MQ.padding.top is still status bar).
+                    // Wait, standard Scaffold removes the consumed padding from MQ?
+                    // No, Scaffold body usually sees 0 top padding if it's below AppBar.
+                    // Let's emulate that: If auto-padded, report 0 (or original status bar? No, 0 relative to parent).
+                    // Actually, let's keep it simple: Report the full obstruction in MQ for transparency support (bottom arg),
+                    // but for top, if we pushed it down, the effective remaining 'safe area' relative to the new top is 0.
+
+                    final double effectiveInjectedTopPadding =
+                        widget.extendBodyBehindAppBar ? topPadding : 0.0;
+
+                    return Padding(
+                      padding: EdgeInsets.only(top: effectiveContentTopPadding),
+                      child: MediaQuery(
+                        data: mediaQuery.copyWith(
+                          padding: padding.copyWith(
+                            top: effectiveInjectedTopPadding,
+                            bottom: bottomPadding,
+                          ),
+                        ),
+                        child: widget.body,
+                      ),
+                    );
+                  },
+                ),
               ),
 
-            // 3. Custom Bottom Navigation Bar at the bottom
-            if (bottomNavigationBar != null)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: bottomNavigationBar!,
-              ),
+              // 2. The AppBar as an overlay at the top
+              if (widget.appBar != null)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  // We wrap the AppBar in a MediaQuery that restores the ORIGINAL top padding
+                  // otherwise it might get double-padded if it uses SafeArea internally while reading our modified MQ
+                  // Actually, KAppBar/CupertinoNavigationBar usually explicitly handle status bar.
+                  // If we don't restore, they might see the *injected* padding and shift down?
+                  // `CupertinoNavigationBar` uses `MediaQuery.of(context).padding.top` to draw background.
+                  // If we are at the top level, `context` here is the *parent* MQ (unmodified).
+                  // So appBar is built with unmodified MQ. This is CORRECT.
+                  child: widget.appBar!,
+                ),
 
-            // 4. Floating Action Button (Handled here as CupertinoScaffold doesn't have one)
-            if (floatingActionButton != null)
-              Positioned(
-                right: 16,
-                bottom:
-                    (bottomNavigationBar != null || Platform.isIOS ? 80 : 16) +
-                        MediaQuery.paddingOf(context).bottom,
-                child: floatingActionButton!,
-              ),
-          ],
+              // 3. Custom Bottom Navigation Bar at the bottom
+              if (widget.bottomNavigationBar != null)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: widget.bottomNavigationBar!,
+                ),
+
+              // 4. Floating Action Button
+              if (widget.floatingActionButton != null)
+                Positioned(
+                  right: 16,
+                  bottom: (widget.bottomNavigationBar != null || Platform.isIOS
+                          ? 80
+                          : 16) +
+                      MediaQuery.paddingOf(context).bottom,
+                  child: widget.floatingActionButton!,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -118,14 +251,30 @@ class AdaptiveScaffold extends StatelessWidget {
 
   Widget _buildMaterialScaffold(BuildContext context) {
     return Scaffold(
-      key: scaffoldKey,
-      appBar: appBar,
-      body: body,
-      bottomNavigationBar: bottomNavigationBar,
-      backgroundColor: backgroundColor,
-      extendBodyBehindAppBar: extendBodyBehindAppBar,
-      floatingActionButton: floatingActionButton,
-      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+      key: widget.scaffoldKey,
+      appBar: widget.appBar,
+      // If expanding behind app bar (Liquid Glass), inject the toolbar height into padding
+      // so children can use MediaQuery.padding.top to clear it if needed.
+      body: widget.extendBodyBehindAppBar
+          ? Builder(
+              builder: (context) {
+                final mediaQuery = MediaQuery.of(context);
+                final topPadding = mediaQuery.padding.top + kToolbarHeight;
+
+                return MediaQuery(
+                  data: mediaQuery.copyWith(
+                    padding: mediaQuery.padding.copyWith(top: topPadding),
+                  ),
+                  child: widget.body,
+                );
+              },
+            )
+          : widget.body,
+      bottomNavigationBar: widget.bottomNavigationBar,
+      backgroundColor: widget.backgroundColor,
+      extendBodyBehindAppBar: widget.extendBodyBehindAppBar,
+      floatingActionButton: widget.floatingActionButton,
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
     );
   }
 }

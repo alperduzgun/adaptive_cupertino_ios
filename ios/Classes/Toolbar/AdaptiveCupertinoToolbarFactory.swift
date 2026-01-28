@@ -42,6 +42,16 @@ class AdaptiveCupertinoToolbarFactory: NSObject, FlutterPlatformViewFactory {
     }
 }
 
+/// Custom Container View to intercept layout changes for Toolbar
+class AdaptiveToolbarContainerView: UIView {
+    var onLayout: (() -> Void)?
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
+    }
+}
+
 /// Platform View wrapper for native iOS 26 UIToolbar
 ///
 /// RESILIENCE STRATEGY:
@@ -62,7 +72,7 @@ class AdaptiveCupertinoToolbarFactory: NSObject, FlutterPlatformViewFactory {
 class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToolbarDelegate, UISearchResultsUpdating, UISearchBarDelegate {
 
     // MARK: - Properties
-    private var _view: UIView
+    private var _view: AdaptiveToolbarContainerView
     private var toolbar: UIToolbar?
     private var navigationBar: UINavigationBar? // Fallback for iOS 18-25
     private var navigationItem: UINavigationItem?
@@ -71,7 +81,12 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     private let viewId: Int64
     private let isIOS26: Bool
     private var topPadding: CGFloat = 0
+    private var bottomPadding: CGFloat = 0
+    private var isBottom: Bool = false
     private var searchController: UISearchController?
+    
+    // De-bouncing layout reports
+    private var lastReportedHeight: CGFloat = 0
 
     // MARK: - Observability
     private static let logger = OSLog(subsystem: "com.adaptive_cupertino_ios", category: "ToolbarView")
@@ -85,14 +100,22 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         binaryMessenger messenger: FlutterBinaryMessenger
     ) {
         self.messenger = messenger
-        self._view = UIView(frame: frame)
+        self._view = AdaptiveToolbarContainerView(frame: frame)
         self.channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios/toolbar_\(viewId)",
             binaryMessenger: messenger
         )
 
-        if let params = args as? [String: Any], let padding = params["topPadding"] as? NSNumber {
-            self.topPadding = CGFloat(truncating: padding)
+        if let params = args as? [String: Any] {
+            if let topP = params["topPadding"] as? NSNumber {
+                self.topPadding = CGFloat(truncating: topP)
+            }
+            if let bottomP = params["bottomPadding"] as? NSNumber {
+                self.bottomPadding = CGFloat(truncating: bottomP)
+            }
+            if let isB = params["isBottom"] as? Bool {
+                self.isBottom = isB
+            }
         }
         
         self.viewId = viewId
@@ -100,6 +123,11 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         self.isIOS26 = IOSVersionDetector.isIOS26OrNewer()
 
         super.init()
+        
+        // Setup Layout Reporting
+        self._view.onLayout = { [weak self] in
+            self?.reportLayout()
+        }
 
         setupNativeToolbar(arguments: args)
         setupMethodChannel()
@@ -109,12 +137,53 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         return _view
     }
 
+    /// Calculate and report the actual visual height to Flutter
+    /// This enables the "Bidirectional Layout Protocol"
+    private func reportLayout() {
+        // Calculate the effective height of the toolbar content from the bottom
+        var visibleTop: CGFloat = _view.bounds.height
+        
+        // 1. Toolbar Bar
+        if let tb = toolbar, !tb.isHidden {
+            visibleTop = min(visibleTop, tb.frame.minY)
+        }
+        
+        // 2. Liquid Glass Background
+        if let subviews = _view.subviews as? [UIView] {
+             for subview in subviews {
+                 if String(describing: type(of: subview)).contains("LiquidGlass") {
+                     visibleTop = min(visibleTop, subview.frame.minY)
+                 }
+             }
+        }
+        
+        // 3. Search Bar / Controller
+        if let sb = searchController?.searchBar, !sb.isHidden, sb.superview == _view {
+             visibleTop = min(visibleTop, sb.frame.minY)
+        }
+        
+        let calculatedHeight = max(0, _view.bounds.height - visibleTop)
+        
+        // Report if changed
+        if abs(calculatedHeight - lastReportedHeight) > 0.5 {
+            lastReportedHeight = calculatedHeight
+            // print("📱 [Toolbar] Reporting Layout Update. Height: \(calculatedHeight), BottomPadding: \(bottomPadding)")
+            
+            // Channel: "onLayoutChanged"
+             channel.invokeMethod("onLayoutChanged", arguments: [
+                "height": calculatedHeight,
+                "safeArea": bottomPadding,
+                "isTop": false // Toolbar is bottom
+            ])
+        }
+    }
+
     // MARK: - UIToolbarDelegate
     
     /// Tell the system this toolbar is attached to the top of the screen
     /// This triggers the automatic status bar blur extension
     func position(for bar: UIBarPositioning) -> UIBarPosition {
-        return .topAttached
+        return isBottom ? .bottom : .topAttached
     }
 
     /// Setup native iOS 26 UIToolbar with automatic pill-shaped button grouping
@@ -151,17 +220,25 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         }
 
         // 2. Conditionally add LiquidGlass background
-        if enableLiquidGlass {
+        // User requested removal of the floating capsule background for bottom bars.
+        if enableLiquidGlass && !isBottom {
             let liquidGlass = LiquidGlassBackgroundView()
             liquidGlass.translatesAutoresizingMaskIntoConstraints = false
             _view.addSubview(liquidGlass)
             
             NSLayoutConstraint.activate([
-                liquidGlass.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-                liquidGlass.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-                liquidGlass.topAnchor.constraint(equalTo: _view.topAnchor),
-                liquidGlass.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+                liquidGlass.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: isBottom ? 16 : 0),
+                liquidGlass.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: isBottom ? -16 : 0),
+                liquidGlass.topAnchor.constraint(equalTo: _view.topAnchor, constant: isBottom ? 0 : 0),
+                liquidGlass.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: isBottom ? -bottomPadding - 8 : 0)
             ])
+            
+            if isBottom {
+                liquidGlass.layer.cornerRadius = 22
+                liquidGlass.clipsToBounds = true
+                // Invert gradient for bottom pill: Fade from top
+                liquidGlass.setDirection(.bottom)
+            }
             
             os_log(.debug, log: Self.logger, "LiquidGlass background enabled")
         } else {
@@ -183,12 +260,21 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
 
         // Pin toolbar to explicit top padding (Manual Layout)
         // We avoid safeAreaLayoutGuide for top anchor due to Flutter embedding constraints
-        NSLayoutConstraint.activate([
-            toolbar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-            toolbar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            toolbar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
-            toolbar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
-        ])
+        if isBottom {
+            NSLayoutConstraint.activate([
+                toolbar.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 16),
+                toolbar.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -16),
+                toolbar.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -bottomPadding - 8),
+                toolbar.heightAnchor.constraint(equalToConstant: 44)
+            ])
+        } else {
+            NSLayoutConstraint.activate([
+                toolbar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+                toolbar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+                toolbar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
+                toolbar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+            ])
+        }
         
         // 4. Setup Search Controller if options are provided
         // ACTION-BASED SEARCH: We init the controller but present it via button tap
@@ -276,7 +362,14 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         private let blurView: UIVisualEffectView
         private let gradientMask = CAGradientLayer()
         private let whiteTintView = UIView() // Milky overlay
-        private let innerGlowView = UIView() // Bottom edge highlight
+        private let innerGlowView = UIView() // Edge highlight
+        
+        enum Direction {
+            case top
+            case bottom
+        }
+        
+        private var currentDirection: Direction = .top
         
         override init(frame: CGRect) {
             // Adaptive blur style based on current trait collection
@@ -333,16 +426,49 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             ])
             
             // 4. Setup gradient mask for fading effect
-            gradientMask.colors = [
-                UIColor.black.cgColor,  // Top: Fully visible
-                UIColor.black.cgColor,  // Keep visible through most of the bar
-                UIColor.clear.cgColor   // Bottom: Fade to transparent
-            ]
-            gradientMask.locations = [0.0, 0.8, 1.0] // Blur covers 80%, fades in last 20%
+            // Default: Top-attached (fades at bottom)
+            updateGradientColors()
+            
             gradientMask.startPoint = CGPoint(x: 0.5, y: 0.0)
             gradientMask.endPoint = CGPoint(x: 0.5, y: 1.0)
             
             layer.mask = gradientMask
+        }
+        
+        private func updateGradientColors() {
+            if currentDirection == .bottom {
+                // Fades at TOP (for bottom toolbar)
+                gradientMask.colors = [
+                    UIColor.clear.cgColor,
+                    UIColor.black.cgColor,
+                    UIColor.black.cgColor
+                ]
+                gradientMask.locations = [0.0, 0.25, 1.0]
+            } else {
+                // Fades at BOTTOM (for top app bar)
+                gradientMask.colors = [
+                    UIColor.black.cgColor,
+                    UIColor.black.cgColor,
+                    UIColor.clear.cgColor
+                ]
+                gradientMask.locations = [0.0, 0.75, 1.0]
+            }
+        }
+        
+        func setDirection(_ direction: Direction) {
+            self.currentDirection = direction
+            updateGradientColors()
+            
+            // Adjust inner glow position if needed
+            if direction == .bottom {
+                innerGlowView.isHidden = true // Hide for pill
+            } else {
+                innerGlowView.isHidden = false
+            }
+        }
+        
+        func setFadingEnabled(_ enabled: Bool) {
+            layer.mask = enabled ? gradientMask : nil
         }
         
         override func layoutSubviews() {
@@ -450,7 +576,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         // 5. Setup trailing buttons
         if let trailingArray = params["trailing"] as? [[String: Any]] {
             for (index, buttonData) in trailingArray.enumerated() {
-                if index >= 10 { break }
+                if index >= 15 { break } // Increased limit for spacers
                 if let button = createBarButtonItem(from: buttonData, position: .trailing, index: index) {
                     items.append(button)
                 }
@@ -527,6 +653,8 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             return createTextButton(from: data, position: position, index: index)
         case "search":
             return createManualSearchButton(from: data, position: position, index: index)
+        case "spacer":
+            return UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         default:
             os_log(OSLogType.default, log: Self.logger, "Unknown button type: %{public}@", type)
             return nil
@@ -1001,7 +1129,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         }
         
         // Notify Flutter
-        channel.invokeMethod("setSearchActive", arguments: ["active": true])
+        channel.invokeMethod("onSearchActive", arguments: ["active": true])
     }
 
     
@@ -1021,7 +1149,8 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         self.plainTitleLabel?.isHidden = false
         
         // Notify Flutter
-        channel.invokeMethod("setSearchActive", arguments: ["active": false])
+        channel.invokeMethod("onSearchCancelled", arguments: nil)
+        channel.invokeMethod("onSearchActive", arguments: ["active": false])
     }
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
@@ -1041,12 +1170,12 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         searchBar.resignFirstResponder()
         if let text = searchBar.text {
-             channel.invokeMethod("onSubmitted", arguments: ["query": text])
+             channel.invokeMethod("onSearchSubmitted", arguments: ["query": text])
         }
     }
     
     private func settingsQuery(_ query: String) {
-        channel.invokeMethod("onQueryChanged", arguments: ["query": query])
+        channel.invokeMethod("onSearchQueryChanged", arguments: ["query": query])
     }
 
     // MARK: - Method Channel

@@ -52,6 +52,9 @@ class AdaptiveCupertinoAction {
   /// The style of the button (Filled, Tinted, etc.).
   final AdaptiveActionButtonStyle style;
 
+  /// Whether this is a flexible spacer instead of a button.
+  final bool isSpacer;
+
   const AdaptiveCupertinoAction({
     this.icon,
     this.label,
@@ -61,6 +64,7 @@ class AdaptiveCupertinoAction {
     this.sharesBackground = true,
     this.color,
     this.isSearchAction = false,
+    this.isSpacer = false,
     this.style = AdaptiveActionButtonStyle.automatic,
   });
 
@@ -76,7 +80,9 @@ class AdaptiveCupertinoAction {
     final effectiveSfSymbol =
         sfSymbolName ?? WidgetSerializer.getSfSymbolName(icon);
 
-    if (isSearchAction) {
+    if (isSpacer) {
+      data['type'] = 'spacer';
+    } else if (isSearchAction) {
       data['type'] = 'search';
       // Allow custom icon/label for search button
       if (effectiveSfSymbol != null) {
@@ -104,7 +110,7 @@ class AdaptiveCupertinoAction {
     }
 
     if (color != null) {
-      data['color'] = color!.value;
+      data['color'] = color!.toARGB32();
     }
 
     // Pass sharing preference (native uses inverse 'hidesSharedBackground', but we pass positive logic here)

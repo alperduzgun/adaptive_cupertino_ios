@@ -37,6 +37,16 @@ class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactor
 /// - iOS 26+ support with strict runtime checks
 /// - Liquid Glass fallback for iOS 18-25
 /// - Standard fallback for older versions
+/// Custom Container View to intercept layout changes
+class AdaptiveContainerView: UIView {
+    var onLayout: (() -> Void)?
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
+    }
+}
+
 /// Platform View wrapper for UINavigationBar
 ///
 /// CHAOS ENGINEERING:
@@ -45,13 +55,16 @@ class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactor
 /// - Standard fallback for older versions
 @available(iOS 15.0, *)
 class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView, UINavigationBarDelegate, UISearchResultsUpdating, UISearchBarDelegate {
-    private var _view: UIView
+    private var _view: AdaptiveContainerView
     private var navigationBar: UINavigationBar!
     private var navigationItem: UINavigationItem!
     private var messenger: FlutterBinaryMessenger
     private let channel: FlutterMethodChannel
     private var topPadding: CGFloat = 0
     private var searchController: UISearchController?
+    
+    // De-bouncing layout reports
+    private var lastReportedHeight: CGFloat = 0
     
     // STRICT RUNTIME CHECK
     private let isIOS26: Bool
@@ -63,7 +76,7 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         binaryMessenger messenger: FlutterBinaryMessenger
     ) {
         self.messenger = messenger
-        self._view = UIView(frame: frame)
+        self._view = AdaptiveContainerView(frame: frame)
         self.channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios/app_bar_\(viewId)",
             binaryMessenger: messenger
@@ -76,6 +89,11 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         }
 
         super.init()
+        
+        // Setup Layout Reporting
+        self._view.onLayout = { [weak self] in
+            self?.reportLayout()
+        }
 
         setupNavigationBar(arguments: args)
         setupMethodChannel()
@@ -83,6 +101,40 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
 
     func view() -> UIView {
         return _view
+    }
+    
+    /// Calculate and report the actual visual height to Flutter
+    /// This enables the "Bidirectional Layout Protocol"
+    private func reportLayout() {
+        // Calculate the bottom-most edge of our visible content
+        var maxY: CGFloat = 0
+        
+        // 1. Navigation Bar
+        if !navigationBar.isHidden {
+            maxY = max(maxY, navigationBar.frame.maxY)
+        }
+        
+        // 2. Search Bar (if manual)
+        if let sb = searchController?.searchBar, !sb.isHidden, sb.superview == _view {
+             maxY = max(maxY, sb.frame.maxY)
+        }
+        
+        // 3. Fallback to view height if subviews are weird, but usually subviews drive the visual obstruction
+        // Actually, for "Liquid Glass", we want the visual height of the bar area.
+        
+        // If the calculated height is significantly different from last report, send it.
+        // Use a small epsilon to avoid float jitter loops
+        if abs(maxY - lastReportedHeight) > 0.5 {
+            lastReportedHeight = maxY
+            print("📱 [AppBar] Reporting Layout Update. Height: \(maxY), TopPadding: \(topPadding)")
+            
+            // Channel: "onLayoutChanged"
+            // Args: { "height": double, "safeArea": double }
+            channel.invokeMethod("onLayoutChanged", arguments: [
+                "height": maxY,
+                "safeArea": topPadding
+            ])
+        }
     }
 
     // MARK: - UINavigationBarDelegate
@@ -277,8 +329,8 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         ]
         
         appearance.largeTitleTextAttributes = [
-             .font: UIFont.systemFont(ofSize: 34, weight: .bold),
-             .foregroundColor: UIColor.label
+            .font: UIFont.systemFont(ofSize: 34, weight: .bold),
+            .foregroundColor: UIColor.label
         ]
 
         navigationBar.standardAppearance = appearance
@@ -341,6 +393,11 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
             }
             navigationItem.rightBarButtonItems = buttons
         }
+        
+        // Force initial layout report
+        _view.setNeedsLayout()
+        _view.layoutIfNeeded()
+        reportLayout()
     }
 
     private func createBarButtonItem(from data: [String: Any], isLeading: Bool, index: Int = 0) -> UIBarButtonItem? {
@@ -393,6 +450,18 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
             }
             return nil
 
+        case "search":
+            let button = UIBarButtonItem(
+                barButtonSystemItem: .search,
+                target: self,
+                action: #selector(searchButtonTapped)
+            )
+            button.tag = index
+            return button
+            
+        case "spacer":
+            return UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+
         default:
             return nil
         }
@@ -404,6 +473,12 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
 
     @objc private func trailingTapped(_ sender: UIBarButtonItem) {
         channel.invokeMethod("onTrailingTapped", arguments: ["index": sender.tag])
+    }
+    
+    @objc private func searchButtonTapped() {
+        self.searchController?.isActive = true
+        self.searchController?.searchBar.becomeFirstResponder()
+        self.navigationItem.hidesSearchBarWhenScrolling = false
     }
 
     private func setupMethodChannel() {
@@ -467,3 +542,4 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         channel.invokeMethod("onSearchCancelled", arguments: nil)
     }
 }
+

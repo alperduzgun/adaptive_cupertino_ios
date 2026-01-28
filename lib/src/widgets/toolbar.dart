@@ -5,7 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../platform/ios_version.dart';
+import '../util/serialization.dart';
 import 'action.dart';
+import 'app_bar.dart';
+import 'layout_notification.dart';
 
 /// Native iOS 26+ Toolbar with pill-shaped button grouping.
 ///
@@ -50,6 +53,18 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
   /// Default: null (adaptive)
   final Color? titleColor;
 
+  /// Search configuration for native search bar.
+  final AdaptiveCupertinoSearchOptions? searchOptions;
+
+  /// Controller for programmatic interaction.
+  final AdaptiveCupertinoAppBarController? controller;
+
+  /// Whether the toolbar is positioned at the bottom of the screen.
+  ///
+  /// When true, the toolbar will apply bottom safe area padding (Home Indicator)
+  /// and render as a floating capsule (Pill) on iOS 26+.
+  final bool isBottom;
+
   const AdaptiveCupertinoToolbar({
     Key? key,
     this.title,
@@ -61,6 +76,9 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
     this.enableLiquidGlass = true,
     this.usePlainTitle = false,
     this.titleColor,
+    this.searchOptions,
+    this.controller,
+    this.isBottom = false,
   })  : assert(
           title == null || title.length <= 100,
           'Title must be 100 characters or less for optimal display',
@@ -88,6 +106,31 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
   void initState() {
     super.initState();
     _checkIOSVersion();
+    widget.controller?.addListener(_handleControllerChange);
+  }
+
+  @override
+  void didUpdateWidget(AdaptiveCupertinoToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      oldWidget.controller?.removeListener(_handleControllerChange);
+      widget.controller?.addListener(_handleControllerChange);
+
+      if (_useNativeToolbar && widget.controller != null) {
+        // Sync new controller state immediately
+        _handleControllerChange();
+      }
+    }
+  }
+
+  void _handleControllerChange() {
+    if (widget.controller != null &&
+        _toolbarChannel != null &&
+        _useNativeToolbar) {
+      _toolbarChannel?.invokeMethod('setSearchActive', {
+        'active': widget.controller!.isSearchActive,
+      });
+    }
   }
 
   Future<void> _checkIOSVersion() async {
@@ -145,6 +188,37 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
           }
         }
         break;
+      case 'onSearchQueryChanged':
+        final args = call.arguments as Map<dynamic, dynamic>;
+        final query = args['query'] as String;
+        widget.searchOptions?.onQueryChanged?.call(query);
+        break;
+      case 'onSearchSubmitted':
+        final args = call.arguments as Map<dynamic, dynamic>;
+        final query = args['query'] as String;
+        widget.searchOptions?.onSubmitted?.call(query);
+        break;
+      case 'onSearchCancelled':
+        widget.searchOptions?.onCancelled?.call();
+        break;
+      case 'onSearchActive':
+        final active = call.arguments['active'] as bool;
+        widget.controller?.setSearchActive(active);
+        break;
+      case 'onLayoutChanged':
+        final args = call.arguments as Map<dynamic, dynamic>;
+        final height = args['height'] as double;
+        final safeArea = args['safeArea'] as double;
+
+        if (mounted) {
+          // Dispatch notification up to AdaptiveScaffold
+          AdaptiveLayoutNotification(
+            height: height,
+            isTop: false,
+            safeArea: safeArea,
+          ).dispatch(context);
+        }
+        break;
     }
   }
 
@@ -163,31 +237,9 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
     }
   }
 
-  Map<String, dynamic>? _serializeWidget(Widget widget) {
-    if (widget is Icon) {
-      return {
-        'type': 'icon',
-        'iconCode': widget.icon?.codePoint,
-        'iconFamily': widget.icon?.fontFamily,
-      };
-    }
-    if (widget is CupertinoButton) {
-      final child = widget.child;
-      if (child is Icon) {
-        return {
-          'type': 'icon',
-          'iconCode': child.icon?.codePoint,
-          'iconFamily': child.icon?.fontFamily,
-          'prominent':
-              widget.color != null, // Treat colored buttons as prominent
-        };
-      }
-    }
-    return null;
-  }
-
   @override
   void dispose() {
+    widget.controller?.removeListener(_handleControllerChange);
     _toolbarChannel?.setMethodCallHandler(null);
     super.dispose();
   }
@@ -221,7 +273,7 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
         debugPrint('📱 [Toolbar] Using shared Action model for leading');
       }
     } else if (widget.leading != null) {
-      leadingData = _serializeWidget(widget.leading!);
+      leadingData = WidgetSerializer.serialize(widget.leading!);
     }
 
     // Serialize trailing widgets
@@ -233,25 +285,32 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
       }
     } else if (widget.trailing != null && widget.trailing!.isNotEmpty) {
       trailingData = widget.trailing!
-          .map((w) => _serializeWidget(w))
+          .map((w) => WidgetSerializer.serialize(w))
           .whereType<Map<String, dynamic>>()
           .toList();
     }
 
     return Container(
-      height: 44.0 + MediaQuery.of(context).padding.top,
+      height: widget.height +
+          (widget.isBottom
+              ? MediaQuery.paddingOf(context).bottom
+              : MediaQuery.paddingOf(context).top),
       // Note: No decoration here - native LiquidGlassBackgroundView handles the blur & gradient
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/toolbar',
         creationParams: {
           'title': widget.title,
-          'topPadding': MediaQuery.of(context).padding.top,
+          'topPadding': MediaQuery.paddingOf(context).top,
+          'bottomPadding': MediaQuery.paddingOf(context).bottom,
+          'isBottom': widget.isBottom,
           'enableLiquidGlass': widget.enableLiquidGlass,
           'usePlainTitle': widget.usePlainTitle,
           if (widget.titleColor != null)
             'titleColor': widget.titleColor!.toARGB32(),
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
+          if (widget.searchOptions != null)
+            'searchOptions': widget.searchOptions!.toMap(),
         },
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: _setupPlatformChannel,

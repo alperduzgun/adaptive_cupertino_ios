@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../platform/ios_version.dart';
 import '../util/serialization.dart';
 import 'action.dart';
+import 'layout_notification.dart';
 
 /// Configuration options for native search bar in [AdaptiveCupertinoAppBar].
 class AdaptiveCupertinoSearchOptions {
@@ -282,6 +283,19 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       case 'onSearchCancelled':
         widget.searchOptions?.onCancelled?.call();
         break;
+      case 'onLayoutChanged':
+        final args = call.arguments as Map<dynamic, dynamic>;
+        final height = args['height'] as double;
+        final safeArea = args['safeArea'] as double;
+
+        if (mounted) {
+          AdaptiveLayoutNotification(
+            height: height,
+            isTop: true,
+            safeArea: safeArea,
+          ).dispatch(context);
+        }
+        break;
     }
   }
 
@@ -309,6 +323,16 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
   @override
   void didUpdateWidget(AdaptiveCupertinoAppBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // Safe controller lifecycle management
+    if (widget.controller != oldWidget.controller) {
+      oldWidget.controller?.removeListener(_handleControllerChange);
+      widget.controller?.addListener(_handleControllerChange);
+
+      if (_useNativeAppBar && widget.controller != null) {
+        _handleControllerChange();
+      }
+    }
 
     // Update title if changed
     if (widget.title != oldWidget.title) {
@@ -456,7 +480,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
     // Let native view handle its own top padding/blur
     // Wrap with subtle gradient to improve Liquid Glass blending
     return Container(
-      height: 44.0 + MediaQuery.of(context).padding.top,
+      height: 44.0 + MediaQuery.paddingOf(context).top,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -473,7 +497,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
         viewType: 'adaptive_cupertino_ios/toolbar',
         creationParams: {
           'title': _titleText,
-          'topPadding': MediaQuery.of(context).padding.top,
+          'topPadding': MediaQuery.paddingOf(context).top,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
           if (widget.searchOptions != null)
@@ -517,7 +541,7 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
     }
 
     // Let native view handle its own top padding/blur
-    final topPadding = MediaQuery.of(context).padding.top;
+    final topPadding = MediaQuery.paddingOf(context).top;
     return Container(
       height: widget.preferredSize.height + topPadding,
       decoration: BoxDecoration(
