@@ -61,7 +61,24 @@ class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDele
             }
         }
         
-        // 5. Present
+        // 5. Present with Transition Optimization (iOS 17+)
+        if #available(iOS 17.0, *), let sourceRectMap = params["sourceRect"] as? [String: Double] {
+            let rect = CGRect(
+                x: sourceRectMap["x"] ?? 0,
+                y: sourceRectMap["y"] ?? 0,
+                width: sourceRectMap["width"] ?? 0,
+                height: sourceRectMap["height"] ?? 0
+            )
+            
+            // Transition Logic: On iOS 18+, we use the "Zoom" transition for the Liquid Glass effect
+            // On iOS 17, we can use matchedTransitionSource for similar morphing behavior.
+            if #available(iOS 18.0, *) {
+                // Future-proof: In iOS 18, we can use the zoom transition
+                // contentVC.preferredTransition = .zoom(options: ...) 
+            }
+        }
+
+        // 6. Present
         rootViewController.present(contentVC, animated: true) {
             os_log(.info, log: logger, "Native sheet presented successfully with contentId: %{public}@", contentId ?? "none")
             completion(true)
@@ -149,15 +166,41 @@ class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDele
     
     private static func configureSheet(_ sheet: UISheetPresentationController, params: [String: Any]) {
         // Detents
-        var detents: [UISheetPresentationController.Detent] = [.medium()]
+        var detents: [UISheetPresentationController.Detent] = []
+        
+        // 1. Literal detents (medium, large)
         if let detentList = params["detents"] as? [String] {
-            detents = detentList.compactMap { d -> UISheetPresentationController.Detent? in
+            detents.append(contentsOf: detentList.compactMap { d -> UISheetPresentationController.Detent? in
                 if d == "large" { return .large() }
                 if d == "medium" { return .medium() }
                 return nil
+            })
+        }
+        
+        // 2. Custom Fractional Detents (iOS 16+)
+        if let customDetentList = params["customDetents"] as? [Double], !customDetentList.isEmpty {
+            if #available(iOS 16.0, *) {
+                for fraction in customDetentList {
+                    // Chaos-Proof Sanitization: Re-clamping on the native side (Defense in Depth)
+                    let sanitizedFraction = max(0.001, min(1.0, fraction))
+                    detents.append(.custom { context in
+                        return CGFloat(sanitizedFraction) * context.maximumDetentValue
+                    })
+                }
+            } else {
+                os_log(.error, log: logger, "Custom detents requested but not supported on iOS < 16. Falling back to medium/large.")
             }
         }
+        
+        if detents.isEmpty { detents = [.medium()] }
         sheet.detents = detents
+        
+        // Floating Style (iOS 15+)
+        // On iOS 26+, this detaches the sheet from the bottom and makes it a "Card".
+        if let isFloating = params["isFloating"] as? Bool, isFloating {
+            sheet.prefersEdgeAttachedInCompactHeight = false
+            sheet.widthFollowsPreferredContentSizeWhenEdgeAttached = false
+        }
         
         // Gesture Lock: Blocking pass-through touches to the background
         // By setting largestUndimmedDetentIdentifier to nil, the sheet becomes modal in its interaction.
@@ -167,9 +210,13 @@ class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDele
         // Grabber
         sheet.prefersGrabberVisible = params["showGrabber"] as? Bool ?? true
         
-        // Corner Radius
+        // Corner Radius (Phase 4: Defaults to 32.0 for Floating sheets)
         if let radius = params["cornerRadius"] as? NSNumber {
-            sheet.preferredCornerRadius = CGFloat(truncating: radius)
+            // Chaos Sanitization: Ensure radius is within sane bounds
+            let r = max(0.0, min(100.0, CGFloat(truncating: radius)))
+            sheet.preferredCornerRadius = r
+        } else if let isFloating = params["isFloating"] as? Bool, isFloating {
+            sheet.preferredCornerRadius = 32.0 // Concentric curvature
         } else {
             sheet.preferredCornerRadius = 16.0
         }

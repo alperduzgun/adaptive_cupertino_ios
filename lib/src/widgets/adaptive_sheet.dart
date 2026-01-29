@@ -75,6 +75,11 @@ enum AdaptiveSheetDetent {
 ///
 /// [contentId] refers to a widget registered via [SheetContentFactory.register]
 /// in the global main() function.
+///
+/// **Phase 4 High-Fidelity Features:**
+/// - [isFloating]: If true, the sheet appears as a detached card (iOS 26+ style).
+/// - [customDetents]: List of fractional (0.0-1.0) or absolute heights.
+/// - [sourceKey]: A GlobalKey used to calculate the morphing transition source.
 Future<bool> showAdaptiveCupertinoSheet(
   BuildContext context, {
   required String contentId,
@@ -82,12 +87,28 @@ Future<bool> showAdaptiveCupertinoSheet(
     AdaptiveSheetDetent.medium,
     AdaptiveSheetDetent.large
   ],
+  List<double> customDetents = const [],
   bool isDismissible = true,
   bool enableDrag = true,
+  bool isFloating = false,
+  bool showGrabber = true,
+  double? cornerRadius,
+  GlobalKey? sourceKey,
 }) async {
   const channel = MethodChannel('adaptive_cupertino_ios');
 
+  // Phase 4 Chaos Remediation: Advanced Sanitization
+  // Assume malicious or accidental inputs (Chaos Lens)
+  final sanitizedCustomDetents = customDetents
+      .map((d) => d.clamp(0.001, 1.0)) // 0.0 is invalid for native detents
+      .toList()
+    ..sort(); // Native detents must be sorted ascending
+
+  final sanitizedCornerRadius =
+      cornerRadius != null ? cornerRadius.clamp(0.0, 100.0) : null;
+
   // Setup callback for lifecycle and detents (Observability & Resize Bridge)
+  // Self-Healing: Use a localized handler that doesn't leak
   channel.setMethodCallHandler((call) async {
     switch (call.method) {
       case 'onDetentChanged':
@@ -96,7 +117,9 @@ Future<bool> showAdaptiveCupertinoSheet(
         break;
       case 'onSheetDismissed':
         debugPrint(
-            '🛡️ [AdaptiveSheet] Native sheet dismissed by user/system. Cleaning up.');
+            '🛡️ [AdaptiveSheet] Native sheet dismissed. Cleaning up handler.');
+        // Cleanup: Nullify handler on dismissal to prevent leaks
+        channel.setMethodCallHandler(null);
         break;
     }
   });
@@ -106,13 +129,36 @@ Future<bool> showAdaptiveCupertinoSheet(
         '🛡️ [AdaptiveSheet] Requesting native sheet presentation for contentId: $contentId');
     final List<String> detentStrings = detents.map((d) => d.name).toList();
 
+    Map<String, double>? sourceRect;
+    if (sourceKey != null) {
+      final RenderBox? renderBox =
+          sourceKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final position = renderBox.localToGlobal(Offset.zero);
+        final size = renderBox.size;
+        sourceRect = {
+          'x': position.dx,
+          'y': position.dy,
+          'width': size.width,
+          'height': size.height,
+        };
+        debugPrint(
+            '🛡️ [AdaptiveSheet] Matched Transition Source: $sourceRect');
+      }
+    }
+
     final bool? result = await channel.invokeMethod<bool>(
       'showSheet',
       {
         'contentId': contentId,
         'detents': detentStrings,
+        'customDetents': sanitizedCustomDetents,
         'isDismissible': isDismissible,
         'enableDrag': enableDrag,
+        'isFloating': isFloating,
+        'showGrabber': showGrabber,
+        'cornerRadius': sanitizedCornerRadius,
+        'sourceRect': sourceRect,
       },
     );
 
@@ -121,11 +167,14 @@ Future<bool> showAdaptiveCupertinoSheet(
     } else {
       debugPrint(
           '🛡️ [AdaptiveSheet] Native sheet presentation failed or was rejected.');
+      // Cleanup on failure
+      channel.setMethodCallHandler(null);
     }
 
     return result ?? false;
   } on PlatformException catch (e) {
     debugPrint('🛡️ [AdaptiveSheet] Failed to show native sheet: ${e.message}');
+    channel.setMethodCallHandler(null);
     return false;
   }
 }

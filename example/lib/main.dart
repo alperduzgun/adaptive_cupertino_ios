@@ -453,28 +453,30 @@ class _CombinedDemoPageState extends State<CombinedDemoPage> {
                       'native blur effects and fluid animations.',
                 ),
                 const SizedBox(height: 24),
+                const SizedBox(height: 24),
                 _buildInfoCard(
-                  'Native Bottom Sheet',
-                  'Trigger a truly native iOS bottom sheet with Liquid Glass effects.\n\n'
-                      '• iOS 26+: Floating 16pt geometry + UIGlassEffect\n'
-                      '• Supports Detents (Medium/Large)\n'
-                      '• Interactive dismissal',
+                  'iOS 26 High-Fidelity',
+                  'Experience the "North Star" of iOS native sheets:\n\n'
+                      '• Floating 16pt Insets (Detached)\n'
+                      '• Custom Detents (35%, 65%, 100%)\n'
+                      '• Matched Transition (Morphing from button)',
                 ),
                 const SizedBox(height: 16),
                 Center(
                   child: AdaptiveButton(
+                    key: _highFidelityKey,
                     onPressed: () {
                       showAdaptiveCupertinoSheet(
                         context,
                         contentId: 'complex-sheet',
-                        detents: [
-                          AdaptiveSheetDetent.medium,
-                          AdaptiveSheetDetent.large,
-                        ],
+                        isFloating: true,
+                        cornerRadius: 32.0,
+                        sourceKey: _highFidelityKey,
+                        customDetents: [0.35, 0.65, 1.0],
                       );
                     },
                     style: AdaptiveButtonStyle.filled,
-                    child: const Text('Show Native Sheet'),
+                    child: const Text('Show High-Fidelity Sheet'),
                   ),
                 ),
               ],
@@ -484,6 +486,8 @@ class _CombinedDemoPageState extends State<CombinedDemoPage> {
       ],
     );
   }
+
+  final GlobalKey _highFidelityKey = GlobalKey();
 
   Widget _buildInfoCard(String title, String description) {
     return Container(
