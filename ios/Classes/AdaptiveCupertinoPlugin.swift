@@ -9,11 +9,18 @@ public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
             name: "adaptive_cupertino_ios",
             binaryMessenger: registrar.messenger()
         )
-        let instance = AdaptiveCupertinoPlugin()
+        let instance = AdaptiveCupertinoPlugin(messenger: registrar.messenger())
         registrar.addMethodCallDelegate(instance, channel: channel)
 
         // Register PlatformView factories
         registerPlatformViews(with: registrar)
+    }
+
+    private let messenger: FlutterBinaryMessenger
+
+    init(messenger: FlutterBinaryMessenger) {
+        self.messenger = messenger
+        super.init()
     }
 
     private static func registerPlatformViews(with registrar: FlutterPluginRegistrar) {
@@ -79,6 +86,14 @@ public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
             result(IOSVersionDetector.supportsLiquidGlass())
         case "supportsModernToolbar":
             result(IOSVersionDetector.supportsModernToolbar())
+        case "showSheet":
+            if let params = call.arguments as? [String: Any] {
+                AdaptiveCupertinoSheetManager.showSheet(messenger: messenger, params: params) { success in
+                    result(success)
+                }
+            } else {
+                result(false)
+            }
         default:
             result(FlutterMethodNotImplemented)
         }

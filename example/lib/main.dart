@@ -339,30 +339,37 @@ class CombinedDemoPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.systemGrey6,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Full Experience',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                _buildInfoCard(
+                  'Full Experience',
+                  'This page shows both AppBar and TabBar working together.\n\n'
+                      'On iOS 18+, you\'re seeing the full Liquid Glass experience with '
+                      'native blur effects and fluid animations.',
+                ),
+                const SizedBox(height: 24),
+                _buildInfoCard(
+                  'Native Bottom Sheet',
+                  'Trigger a truly native iOS bottom sheet with Liquid Glass effects.\n\n'
+                      '• iOS 26+: Floating 16pt geometry + UIGlassEffect\n'
+                      '• Supports Detents (Medium/Large)\n'
+                      '• Interactive dismissal',
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: AdaptiveButton(
+                    onPressed: () {
+                      showAdaptiveCupertinoSheet(
+                        context,
+                        child: const Center(
+                          child: Text('Native Sheet Content'),
                         ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'This page shows both AppBar and TabBar working together.\n\n'
-                        'On iOS 18+, you\'re seeing the full Liquid Glass experience with '
-                        'native blur effects and fluid animations.',
-                        style: TextStyle(fontSize: 15),
-                      ),
-                    ],
+                        detents: [
+                          AdaptiveSheetDetent.medium,
+                          AdaptiveSheetDetent.large,
+                        ],
+                      );
+                    },
+                    style: AdaptiveButtonStyle.filled,
+                    child: const Text('Show Native Sheet'),
                   ),
                 ),
               ],
@@ -370,6 +377,33 @@ class CombinedDemoPage extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildInfoCard(String title, String description) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemGrey6,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: const TextStyle(fontSize: 15),
+          ),
+        ],
+      ),
     );
   }
 }

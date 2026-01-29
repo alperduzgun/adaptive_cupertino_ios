@@ -19,6 +19,7 @@ export 'src/widgets/slider.dart';
 export 'src/widgets/switch.dart';
 export 'src/widgets/tab_bar.dart';
 export 'src/widgets/toolbar.dart';
+export 'src/widgets/adaptive_sheet.dart';
 
 // Platform
 export 'src/platform/bridge.dart';

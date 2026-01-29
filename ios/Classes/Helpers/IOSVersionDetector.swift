@@ -66,6 +66,14 @@ class IOSVersionDetector {
         return false
     }
 
+    // MARK: - iOS 26 Liquid Glass Sheets
+
+    /// Check if device supports Liquid Glass Sheets (iOS 26+)
+    /// Includes floating geometry and UIGlassEffect support.
+    static func supportsLiquidGlassSheets() -> Bool {
+        return isIOS26OrNewer()
+    }
+
     // MARK: - Version Parsing (Anti-fragile with multiple methods)
 
     /// Get current iOS major version with caching for idempotency

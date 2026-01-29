@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+
 import '../util/serialization.dart';
 
 /// Style configuration for [AdaptiveCupertinoAction].
@@ -110,7 +111,7 @@ class AdaptiveCupertinoAction {
     }
 
     if (color != null) {
-      data['color'] = color!.toARGB32();
+      data['color'] = color!.value;
     }
 
     // Pass sharing preference (native uses inverse 'hidesSharedBackground', but we pass positive logic here)

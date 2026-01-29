@@ -58,9 +58,9 @@ class AdaptiveSwitch extends StatelessWidget {
         viewType: 'adaptive_cupertino_ios/switch',
         creationParams: {
           'isOn': value,
-          'activeColor': activeColor?.toARGB32(),
-          'thumbColor': thumbColor?.toARGB32(),
-          'trackColor': trackColor?.toARGB32(),
+          'activeColor': activeColor?.value,
+          'thumbColor': thumbColor?.value,
+          'trackColor': trackColor?.value,
           'enabled': onChanged != null,
         },
         creationParamsCodec: const StandardMessageCodec(),
@@ -96,8 +96,7 @@ class AdaptiveSwitch extends StatelessWidget {
     return Switch.adaptive(
       value: value,
       onChanged: onChanged,
-      activeTrackColor: activeColor,
-      activeThumbColor: activeColor,
+      activeColor: activeColor,
       inactiveThumbColor: thumbColor,
       inactiveTrackColor: trackColor,
     );
