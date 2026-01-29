@@ -13,11 +13,12 @@ class AdaptiveGlassHelper {
 
     /// Creates a glass effect view appropriate for the current iOS version.
     ///
+    /// - Parameter isInteractive: Whether the effect should respond to real-time interaction (iOS 26+)
     /// - Returns: A `UIView` (either a `UIVisualEffectView` or a specialized glass view)
-    static func createGlassView() -> UIView {
+    static func createGlassView(isInteractive: Bool = true) -> UIView {
         if IOSVersionDetector.supportsLiquidGlassSheets() {
             // iOS 26+ Native Liquid Glass
-            return createModernGlassView()
+            return createModernGlassView(isInteractive: isInteractive)
         } else {
             // iOS < 26 Standard Fallback
             return createStandardBlurView()
@@ -25,36 +26,27 @@ class AdaptiveGlassHelper {
     }
 
     /// Creates the native iOS 26 Liquid Glass view using UIGlassEffect
-    private static func createModernGlassView() -> UIView {
+    private static func createModernGlassView(isInteractive: Bool) -> UIView {
         // Primary: iOS 26+ UIGlassEffect
-        // We use UIVisualEffectView as the container.
         let blurView = UIVisualEffectView()
         
-        // Use dynamic check to avoid compiler errors on older SDKs
         if #available(iOS 26.0, *),
            let glassEffectClass = NSClassFromString("UIGlassEffect") as? NSObject.Type {
             
-            // Try to instantiate UIGlassEffect(glass: .regular, isInteractive: true)
-            // Note: Since we can't easily use the specific initializer with dynamic dispatch,
-            // we use the generic init if available or property settings.
-            // On iOS 26+, UIGlassEffect is expected to be available.
-            
-            // For now, we'll try to use a generic initialization and set properties via KVC 
-            // OR use a selector if we know the signature.
             let glassEffect = glassEffectClass.init()
             
-            // Safer property setting: Check if object responds to the setter or has the property
             if glassEffect.responds(to: NSSelectorFromString("setGlass:")) {
                 glassEffect.setValue(0, forKey: "glass") // Assuming .regular is 0
             }
             
             if glassEffect.responds(to: NSSelectorFromString("setIsInteractive:")) {
-                glassEffect.setValue(true, forKey: "isInteractive")
+                glassEffect.setValue(isInteractive, forKey: "isInteractive")
             }
             
             if let effect = glassEffect as? UIVisualEffect {
                 blurView.effect = effect
-                os_log(.info, log: logger, "Created native iOS 26 UIGlassEffect view dynamically")
+                // Optimization: Improve blending performance
+                blurView.layer.allowsGroupOpacity = false
                 return blurView
             }
         }
@@ -99,6 +91,8 @@ class AdaptiveGlassHelper {
 @available(iOS 15.0, *)
 class AdaptiveGlassView: UIView {
     private var effectView: UIView?
+    private var isInteractive: Bool = true
+    private var applyGeometry: Bool = true
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -109,11 +103,26 @@ class AdaptiveGlassView: UIView {
         super.init(coder: coder)
         setup()
     }
+    
+    /// Convenience initializer for optimized performance
+    convenience init(frame: CGRect, isInteractive: Bool, applyGeometry: Bool = true) {
+        self.init(frame: frame)
+        self.isInteractive = isInteractive
+        self.applyGeometry = applyGeometry
+        // Re-setup if needed or just use properties in setup()
+        refresh()
+    }
 
     private func setup() {
         backgroundColor = .clear
+        refresh()
+    }
+
+    private func refresh() {
+        // Cleaning up old view if needed (mostly for convenience init usage)
+        effectView?.removeFromSuperview()
         
-        let glass = AdaptiveGlassHelper.createGlassView()
+        let glass = AdaptiveGlassHelper.createGlassView(isInteractive: isInteractive)
         glass.translatesAutoresizingMaskIntoConstraints = false
         addSubview(glass)
         
@@ -126,7 +135,12 @@ class AdaptiveGlassView: UIView {
         
         self.effectView = glass
         
-        // Apply modern geometry by default
-        AdaptiveGlassHelper.configureModernGeometry(for: self, radius: 16.0)
+        if applyGeometry {
+            AdaptiveGlassHelper.configureModernGeometry(for: self, radius: 16.0)
+        } else {
+            // Ensure no clipping overhead
+            self.layer.cornerRadius = 0
+            self.clipsToBounds = false
+        }
     }
 }

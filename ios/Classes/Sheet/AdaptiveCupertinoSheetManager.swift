@@ -6,15 +6,11 @@ import os.log
 ///
 /// Uses UISheetPresentationController for native behavior and iOS 26 Liquid Glass styling.
 @available(iOS 15.0, *)
-class AdaptiveCupertinoSheetManager {
+class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDelegate {
     private static let logger = OSLog(subsystem: "com.adaptive_cupertino_ios", category: "SheetManager")
+    private static var shared = AdaptiveCupertinoSheetManager()
     
     /// Presents a native bottom sheet
-    /// 
-    /// - Parameters:
-    ///   - messenger: The binary messenger for communication
-    ///   - arguments: Parameters from Dart (detents, contentId, etc.)
-    ///   - completion: Callback when presented
     static func showSheet(
         messenger: FlutterBinaryMessenger,
         params: [String: Any],
@@ -29,9 +25,11 @@ class AdaptiveCupertinoSheetManager {
         // 1. Create a container view controller
         let contentVC = UIViewController()
         contentVC.view.backgroundColor = .clear // Let the glass effect shine through
+        // contentVC.isModalInPresentation = true // REVERTED: Restores native swipe-to-dismiss
         
         // 2. Setup the Sheet Presentation Controller
         if let sheet = contentVC.sheetPresentationController {
+            sheet.delegate = shared
             configureSheet(sheet, params: params)
         }
         
@@ -42,11 +40,7 @@ class AdaptiveCupertinoSheetManager {
             contentVC.view.backgroundColor = .systemBackground.withAlphaComponent(0.8)
         }
         
-        // 4. Handle Content Embedding (If we want to show a Flutter widget inside)
-        // For now, we'll just demonstrate the native container. 
-        // In a full implementation, we would register another PlatformView or pass a Texture.
-        
-        // 5. Present
+        // 4. Present
         rootViewController.present(contentVC, animated: true) {
             os_log(.info, log: logger, "Native sheet presented successfully")
             completion(true)
@@ -65,14 +59,13 @@ class AdaptiveCupertinoSheetManager {
         }
         sheet.detents = detents
         
+        // Gesture Lock: Blocking pass-through touches to the background
+        // By setting largestUndimmedDetentIdentifier to nil, the sheet becomes modal in its interaction.
+        sheet.largestUndimmedDetentIdentifier = nil
+        sheet.prefersScrollingExpandsWhenScrolledToEdge = true
+        
         // Grabber
         sheet.prefersGrabberVisible = params["showGrabber"] as? Bool ?? true
-        
-        // Floating Geometry (iOS 26+)
-        if #available(iOS 26.0, *), IOSVersionDetector.supportsLiquidGlassSheets() {
-             // In iOS 26, sheet presentation is floating by default if configured
-             // We can influence the edge insets here if needed
-        }
         
         // Corner Radius
         if let radius = params["cornerRadius"] as? NSNumber {
@@ -83,7 +76,9 @@ class AdaptiveCupertinoSheetManager {
     }
     
     private static func applyLiquidGlassEffect(to view: UIView) {
-        let glassView = AdaptiveGlassView(frame: view.bounds)
+        // Optimization: isInteractive=false (reduces per-frame calculation)
+        // applyGeometry=false (sheet controller handles corner clipping)
+        let glassView = AdaptiveGlassView(frame: view.bounds, isInteractive: false, applyGeometry: false)
         glassView.translatesAutoresizingMaskIntoConstraints = false
         view.insertSubview(glassView, at: 0)
         
@@ -93,5 +88,17 @@ class AdaptiveCupertinoSheetManager {
             glassView.topAnchor.constraint(equalTo: view.topAnchor),
             glassView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+    }
+
+    // MARK: - UISheetPresentationControllerDelegate
+    
+    func sheetPresentationControllerDidChangeSelectedDetentIdentifier(_ sheetPresentationController: UISheetPresentationController) {
+        if let id = sheetPresentationController.selectedDetentIdentifier {
+            os_log(.info, log: AdaptiveCupertinoSheetManager.logger, "Sheet detent changed to: %{public}@", id.rawValue)
+        }
+    }
+    
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        os_log(.info, log: AdaptiveCupertinoSheetManager.logger, "Sheet was dismissed by user")
     }
 }
