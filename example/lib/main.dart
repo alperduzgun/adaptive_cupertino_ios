@@ -1,12 +1,41 @@
-import 'package:flutter/cupertino.dart';
 import 'package:adaptive_cupertino_ios/adaptive_cupertino_ios.dart';
+import 'package:flutter/cupertino.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Phase 3: Synchronous Version Pre-warming 🛡️⚡
+  await IOSVersion.prewarm();
+
+  // Phase 2: Register Sheet Content Factory (NATIVE FOCUSED)
+  // This must be in main() to be visible to isolated sibling engines.
+  SheetContentFactory.register(
+      'complex-sheet', () => const ComplexSheetContent());
+
   runApp(const MyApp());
 }
 
+/// Phase 3: Dedicated Sheet Entry Point for Total Isolation 🛡️🧬
+///
+/// This entry point is used by isolated sibling engines spawned via
+/// AdaptiveCupertinoSheetManager. It bypasses MyApp and HomePage entirely,
+/// preventing "Back Button Bleed" and ensuring a clean navigator stack.
+@pragma('vm:entry-point')
+void adaptiveSheetEntrypoint() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Phase 3: Synchronous Version Pre-warming 🛡️⚡
+  await IOSVersion.prewarm();
+
+  // Register the same factories so they are available in this isolate
+  SheetContentFactory.register(
+      'complex-sheet', () => const ComplexSheetContent());
+
+  runApp(const AdaptiveSheetApp());
+}
+
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,12 +46,31 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.light,
       ),
       home: HomePage(),
+      onGenerateRoute: onGenerateAdaptiveSheetRoute,
+    );
+  }
+}
+
+/// Minimal Isolated App for Sheets
+class AdaptiveSheetApp extends StatelessWidget {
+  const AdaptiveSheetApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const CupertinoApp(
+      title: 'Isolated Sheet',
+      theme: CupertinoThemeData(
+        primaryColor: CupertinoColors.systemBlue,
+        brightness: Brightness.light,
+      ),
+      // NO home widget! The initial route will be handled by onGenerateRoute.
+      onGenerateRoute: onGenerateAdaptiveSheetRoute,
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -118,7 +166,7 @@ class _HomePageState extends State<HomePage> {
 
 // Tab Bar Demo Page
 class TabBarDemoPage extends StatelessWidget {
-  const TabBarDemoPage({Key? key}) : super(key: key);
+  const TabBarDemoPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +269,7 @@ class TabBarDemoPage extends StatelessWidget {
 
 // AppBar Demo Page
 class AppBarDemoPage extends StatelessWidget {
-  const AppBarDemoPage({Key? key}) : super(key: key);
+  const AppBarDemoPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -323,9 +371,68 @@ class AppBarDemoPage extends StatelessWidget {
 }
 
 // Combined Demo Page
-class CombinedDemoPage extends StatelessWidget {
-  const CombinedDemoPage({Key? key}) : super(key: key);
+class CombinedDemoPage extends StatefulWidget {
+  const CombinedDemoPage({super.key});
 
+  @override
+  State<CombinedDemoPage> createState() => _CombinedDemoPageState();
+}
+
+/// Extracted complex content for Phase 2 Isolated Sheets.
+class ComplexSheetContent extends StatelessWidget {
+  const ComplexSheetContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0x00000000), // Transparent for Liquid Glass
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Isolated Dynamic Content'),
+        backgroundColor: Color(0x00000000),
+        border: null,
+      ),
+      child: SafeArea(
+        child: ListView.builder(
+          itemCount: 20,
+          itemBuilder: (context, index) => CupertinoListTile(
+            title: Text('Isolate Item $index'),
+            subtitle: Text('Running in its own engine world #$index'),
+            leading: Icon(
+              index.isEven
+                  ? CupertinoIcons.bolt_fill
+                  : CupertinoIcons.flame_fill,
+              color: index.isEven
+                  ? CupertinoColors.systemYellow
+                  : CupertinoColors.systemOrange,
+            ),
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(CupertinoIcons.info),
+              onPressed: () {
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) => CupertinoAlertDialog(
+                    title: const Text('Interaction Works!'),
+                    content: Text(
+                        'You tapped item $index inside an isolated isolate.'),
+                    actions: [
+                      CupertinoDialogAction(
+                        child: const Text('OK'),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CombinedDemoPageState extends State<CombinedDemoPage> {
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
@@ -359,9 +466,7 @@ class CombinedDemoPage extends StatelessWidget {
                     onPressed: () {
                       showAdaptiveCupertinoSheet(
                         context,
-                        child: const Center(
-                          child: Text('Native Sheet Content'),
-                        ),
+                        contentId: 'complex-sheet',
                         detents: [
                           AdaptiveSheetDetent.medium,
                           AdaptiveSheetDetent.large,
@@ -410,7 +515,7 @@ class CombinedDemoPage extends StatelessWidget {
 
 // Settings Page
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {

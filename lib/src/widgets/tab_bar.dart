@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../platform/ios_version.dart';
+import '../util/serialization.dart';
 
 /// Model class for tab bar items.
 class AdaptiveCupertinoTabItem {
@@ -51,6 +52,18 @@ class AdaptiveCupertinoTabItem {
     if (sfSymbolName != null) {
       data['iconName'] = sfSymbolName;
       data['selectedIconName'] = selectedSfSymbolName ?? sfSymbolName;
+    } else {
+      // Phase 2.2: Unified Auto-Mapping
+      final autoIcon = WidgetSerializer.getSfSymbolName(icon);
+      if (autoIcon != null) {
+        data['iconName'] = autoIcon;
+      }
+
+      final autoSelectedIcon =
+          WidgetSerializer.getSfSymbolName(selectedIcon ?? icon);
+      if (autoSelectedIcon != null) {
+        data['selectedIconName'] = autoSelectedIcon;
+      }
     }
 
     if (selectedIcon != null) {
@@ -126,6 +139,14 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
   @override
   void initState() {
     super.initState();
+
+    // Phase 3: Synchronous Cache Access 🛡️⚡
+    final iosVersion = IOSVersion();
+    if (iosVersion.cachedSupportsNativeUI != null) {
+      _useNativeTabBar = iosVersion.cachedSupportsNativeUI!;
+      _isCheckingVersion = false;
+    }
+
     _checkIOSVersion();
   }
 
@@ -209,6 +230,17 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
 
   @override
   Widget build(BuildContext context) {
+    // Multi-View Awareness (Tech Lead Fix):
+    // If this widget is rendered in a secondary view (like a native bottom sheet),
+    // it MUST hide itself to prevent "UI Mirroring" of the main app's layout.
+    try {
+      if (View.of(context).viewId != 0) {
+        return const SizedBox.shrink();
+      }
+    } catch (_) {
+      // Fallback for environments whereView.of fails
+    }
+
     if (_isCheckingVersion) {
       return const SizedBox(height: 49);
     }

@@ -4,12 +4,19 @@ import os.log
 
 @available(iOS 15.0, *)
 public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
+    private static var registrar: FlutterPluginRegistrar?
+
+    internal static var shared: AdaptiveCupertinoPlugin?
+    
     public static func register(with registrar: FlutterPluginRegistrar) {
+        Self.registrar = registrar
         let channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios",
             binaryMessenger: registrar.messenger()
         )
-        let instance = AdaptiveCupertinoPlugin(messenger: registrar.messenger())
+        AdaptiveCupertinoSheetManager.setChannel(channel)
+        let instance = AdaptiveCupertinoPlugin(messenger: registrar.messenger(), registrar: registrar)
+        Self.shared = instance
         registrar.addMethodCallDelegate(instance, channel: channel)
 
         // Register PlatformView factories
@@ -17,10 +24,20 @@ public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
     }
 
     private let messenger: FlutterBinaryMessenger
+    private let registrar: FlutterPluginRegistrar
+    private var engineGroup: FlutterEngineGroup?
 
-    init(messenger: FlutterBinaryMessenger) {
+    init(messenger: FlutterBinaryMessenger, registrar: FlutterPluginRegistrar) {
         self.messenger = messenger
+        self.registrar = registrar
+        if #available(iOS 10.0, *) {
+            self.engineGroup = FlutterEngineGroup(name: "adaptive_cupertino_sheets", project: nil)
+        }
         super.init()
+    }
+    
+    internal func spawnEngine(withRoute route: String) -> FlutterEngine? {
+        return engineGroup?.makeEngine(withEntrypoint: "adaptiveSheetEntrypoint", libraryURI: nil, initialRoute: route)
     }
 
     private static func registerPlatformViews(with registrar: FlutterPluginRegistrar) {

@@ -179,6 +179,9 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
 
         navigationBar.items = [navigationItem]
         _view.addSubview(navigationBar)
+        
+        // Ensure z-order is correct: NavigationBar on top of blur
+        _view.bringSubviewToFront(navigationBar)
 
         if hasSearch {
             // COMPOSITE LAYOUT: Manually place NavBar and SearchBar
@@ -228,8 +231,8 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
     }
 
     private func setupBackgroundBlur() {
-        // Force .light style to avoid gray system adaptation
-        let blurEffect = UIBlurEffect(style: .light)
+        // Use .systemThinMaterial for modern adaptive contrast
+        let blurEffect = UIBlurEffect(style: .systemThinMaterial)
         let blurView = UIVisualEffectView(effect: blurEffect)
         blurView.translatesAutoresizingMaskIntoConstraints = false
         blurView.backgroundColor = .clear

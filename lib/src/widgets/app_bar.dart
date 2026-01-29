@@ -168,6 +168,16 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
   void initState() {
     super.initState();
     _extractTitleText();
+
+    // Phase 3: Synchronous Cache Access 🛡️⚡
+    // If we have pre-warmed values, we can skip the initial flicker
+    final iosVersion = IOSVersion();
+    if (iosVersion.cachedSupportsNativeUI != null) {
+      _useNativeAppBar = iosVersion.cachedSupportsNativeUI!;
+      _useModernToolbar = iosVersion.cachedSupportsModernToolbar ?? false;
+      _isCheckingVersion = false;
+    }
+
     _checkIOSVersion();
     widget.controller?.addListener(_handleControllerChange);
   }
@@ -212,21 +222,15 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       if (mounted) {
         setState(() {
           _useModernToolbar = supportsModernToolbar;
-          _useNativeAppBar = true; // FORCED FOR DEBUGGING
+          _useNativeAppBar = supportsNativeUI;
           _isCheckingVersion = false;
         });
       }
 
       // OBSERVABILITY: Structured logging
       if (kDebugMode) {
-        if (supportsModernToolbar) {
-          debugPrint(
-              '📱 AppBar: Using native iOS 26+ UIToolbar (pill-shaped buttons)');
-        } else if (supportsNativeUI) {
-          debugPrint('📱 AppBar: Using native iOS 18-25 UINavigationBar');
-        } else {
-          debugPrint('📱 AppBar: Using fallback CupertinoNavigationBar');
-        }
+        debugPrint(
+            '📱 AppBar: Version check result - Modern: $supportsModernToolbar, NativeUI: $supportsNativeUI');
       }
     } catch (e) {
       // FAIL-SAFE: On any error, use fallback
@@ -352,6 +356,17 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
 
   @override
   Widget build(BuildContext context) {
+    // Multi-View Awareness (Tech Lead Fix):
+    // If this widget is rendered in a secondary view (like a native bottom sheet),
+    // it MUST hide itself to prevent "UI Mirroring" of the main app's layout.
+    try {
+      if (View.of(context).viewId != 0) {
+        return const SizedBox.shrink();
+      }
+    } catch (_) {
+      // Fallback for environments whereView.of fails
+    }
+
     // Show placeholder while checking version (CHAOS: Non-blocking UI)
     if (_isCheckingVersion) {
       return SizedBox(
@@ -371,6 +386,12 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
     // SECURITY: Ensure title is available and widgets are serializable
     bool canUseNative =
         (_useModernToolbar || _useNativeAppBar) && _titleText != null;
+
+    if (kDebugMode && !canUseNative && !_isCheckingVersion) {
+      debugPrint('⚠️ [AppBar] canUseNative is FALSE: '
+          'useModern: $_useModernToolbar, useNative: $_useNativeAppBar, '
+          'titleText: ${_titleText != null}');
+    }
 
     if (canUseNative) {
       // Check serialization only if explicit actions are NOT provided
@@ -477,22 +498,8 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       }
     }
 
-    // Let native view handle its own top padding/blur
-    // Wrap with subtle gradient to improve Liquid Glass blending
-    return Container(
+    return SizedBox(
       height: 44.0 + MediaQuery.paddingOf(context).top,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            CupertinoColors.systemBackground
-                .resolveFrom(context)
-                .withAlpha(220),
-            CupertinoColors.systemBackground.resolveFrom(context).withAlpha(0),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/toolbar',
         creationParams: {
@@ -540,28 +547,15 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       }
     }
 
-    // Let native view handle its own top padding/blur
-    final topPadding = MediaQuery.paddingOf(context).top;
-    return Container(
-      height: widget.preferredSize.height + topPadding,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            CupertinoColors.systemBackground
-                .resolveFrom(context)
-                .withAlpha(220),
-            CupertinoColors.systemBackground.resolveFrom(context).withAlpha(0),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
+    return SizedBox(
+      height:
+          (widget.largeTitle ? 96.0 : 44.0) + MediaQuery.paddingOf(context).top,
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/navigation_bar',
         creationParams: {
           'title': _titleText,
           'largeTitle': widget.largeTitle,
-          'topPadding': topPadding,
+          'topPadding': MediaQuery.paddingOf(context).top,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
           if (widget.searchOptions != null)

@@ -5,8 +5,9 @@
   "packages": [
     {
       "name": "adaptive_cupertino_ios",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": [
+        "cupertino_icons",
         "flutter"
       ],
       "devDependencies": [
@@ -38,6 +39,11 @@
         "test_api",
         "vector_math"
       ]
+    },
+    {
+      "name": "cupertino_icons",
+      "version": "1.0.8",
+      "dependencies": []
     },
     {
       "name": "flutter",

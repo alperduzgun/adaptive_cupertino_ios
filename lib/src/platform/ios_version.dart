@@ -22,6 +22,20 @@ class IOSVersion {
 
   static final IOSVersion _instance = IOSVersion._internal();
 
+  /// Pre-warms the iOS version cache.
+  ///
+  /// This should be called early in the app lifecycle (e.g. main)
+  /// to ensure version info is available synchronously during build.
+  static Future<void> prewarm() async {
+    final instance = IOSVersion();
+    if (instance._supportsNativeUI == null) {
+      await instance.supportsNativeUI();
+    }
+    if (instance._supportsModernToolbar == null) {
+      await instance.supportsModernToolbar();
+    }
+  }
+
   // IDEMPOTENCY: Cached results
   bool? _supportsNativeUI;
   bool? _supportsModernToolbar;
@@ -62,7 +76,8 @@ class IOSVersion {
     // Fast path: Non-iOS platforms don't support native UI
     if (!Platform.isIOS) {
       _supportsNativeUI = false;
-      _logInfo('Platform: ${Platform.operatingSystem} - Native UI not supported');
+      _logInfo(
+          'Platform: ${Platform.operatingSystem} - Native UI not supported');
       return false;
     }
 
@@ -71,7 +86,8 @@ class IOSVersion {
       _supportsNativeUI = await bridge.supportsNativeUI();
       _lastError = null; // Clear error on success
 
-      _logInfo('iOS version check completed: Native UI ${_supportsNativeUI! ? "supported (iOS 18+)" : "not supported (iOS <18)"}');
+      _logInfo(
+          'iOS version check completed: Native UI ${_supportsNativeUI! ? "supported (iOS 18+)" : "not supported (iOS <18)"}');
 
       return _supportsNativeUI!;
     } catch (error, stackTrace) {
@@ -102,7 +118,8 @@ class IOSVersion {
   Future<bool> supportsModernToolbar() async {
     // IDEMPOTENCY: Return cached result if available
     if (_supportsModernToolbar != null) {
-      _logInfo('Returning cached iOS 26+ check result: $_supportsModernToolbar');
+      _logInfo(
+          'Returning cached iOS 26+ check result: $_supportsModernToolbar');
       return _supportsModernToolbar!;
     }
 
@@ -112,7 +129,8 @@ class IOSVersion {
     // FAIL-FAST: Non-iOS platforms don't support modern toolbar
     if (!Platform.isIOS) {
       _supportsModernToolbar = false;
-      _logInfo('Platform: ${Platform.operatingSystem} - Modern toolbar not supported');
+      _logInfo(
+          'Platform: ${Platform.operatingSystem} - Modern toolbar not supported');
       return false;
     }
 

@@ -44,15 +44,71 @@ class WidgetSerializer {
   static String? getSfSymbolName(IconData? icon) {
     if (icon == null) return null;
 
-    // Automatic SF Symbol Mapping
+    // Automatic SF Symbol Mapping (Common CupertinoIcons)
     if (icon == CupertinoIcons.search || icon == Icons.search) {
       return 'magnifyingglass';
     } else if (icon == CupertinoIcons.add || icon == Icons.add) {
       return 'plus';
-    } else if (icon == CupertinoIcons.settings || icon == Icons.settings) {
-      return 'gear';
     } else if (icon == CupertinoIcons.share || icon == Icons.share) {
       return 'square.and.arrow.up';
+    } else if (icon == CupertinoIcons.info_circle || icon == Icons.info) {
+      return 'info.circle';
+    } else if (icon == CupertinoIcons.gear ||
+        icon == CupertinoIcons.settings ||
+        icon == Icons.settings) {
+      return 'gear';
+    } else if (icon == CupertinoIcons.gear_solid) {
+      return 'gear.fill';
+    } else if (icon == CupertinoIcons.layers) {
+      return 'layers';
+    } else if (icon == CupertinoIcons.layers_fill) {
+      return 'layers.fill';
+    } else if (icon == CupertinoIcons.circle) {
+      return 'circle';
+    } else if (icon == CupertinoIcons.circle_fill) {
+      return 'circle.fill';
+    } else if (icon == CupertinoIcons.heart) {
+      return 'heart';
+    } else if (icon == CupertinoIcons.heart_fill) {
+      return 'heart.fill';
+    } else if (icon == CupertinoIcons.star) {
+      return 'star';
+    } else if (icon == CupertinoIcons.star_fill) {
+      return 'star.fill';
+    } else if (icon == CupertinoIcons.house) {
+      return 'house';
+    } else if (icon == CupertinoIcons.house_fill) {
+      return 'house.fill';
+    } else if (icon == CupertinoIcons.square_grid_2x2) {
+      return 'square.grid.2x2';
+    } else if (icon == CupertinoIcons.square_grid_2x2_fill) {
+      return 'square.grid.2x2.fill';
+    } else if (icon == CupertinoIcons.rectangle_stack) {
+      return 'rectangle.stack';
+    } else if (icon == CupertinoIcons.rectangle_stack_fill) {
+      return 'rectangle.stack.fill';
+    } else if (icon == CupertinoIcons.bolt_fill) {
+      return 'bolt.fill';
+    } else if (icon == CupertinoIcons.flame_fill) {
+      return 'flame.fill';
+    } else if (icon == CupertinoIcons.doc_text) {
+      return 'doc.text';
+    } else if (icon == CupertinoIcons.doc_text_fill) {
+      return 'doc.text.fill';
+    } else if (icon == CupertinoIcons.person_2) {
+      return 'person.2';
+    } else if (icon == CupertinoIcons.person_2_fill) {
+      return 'person.2.fill';
+    } else if (icon == CupertinoIcons.sparkles) {
+      return 'sparkles';
+    } else if (icon == CupertinoIcons.person_circle) {
+      return 'person.circle';
+    } else if (icon == CupertinoIcons.person_circle_fill) {
+      return 'person.circle.fill';
+    } else if (icon == CupertinoIcons.bell) {
+      return 'bell';
+    } else if (icon == CupertinoIcons.bell_fill) {
+      return 'bell.fill';
     }
 
     return null;

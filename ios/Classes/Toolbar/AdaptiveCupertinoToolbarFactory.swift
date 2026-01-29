@@ -395,7 +395,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             
             // 1. Add blur view (base layer)
             blurView.translatesAutoresizingMaskIntoConstraints = false
-            blurView.alpha = 0.4 // Reduced blur intensity (40%)
+            blurView.alpha = 0.7 // Increased blur intensity (70% for clarity)
             addSubview(blurView)
             
             NSLayoutConstraint.activate([
@@ -406,7 +406,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             ])
             
             // 2. Add subtle white tint for "milky" appearance
-            whiteTintView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+            whiteTintView.backgroundColor = UIColor.white.withAlphaComponent(0.1)
             whiteTintView.translatesAutoresizingMaskIntoConstraints = false
             blurView.contentView.addSubview(whiteTintView)
             
@@ -853,8 +853,8 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         // Create bar button item with custom view
         let barButtonItem = UIBarButtonItem(customView: titleLabel)
         
-        // Disable user interaction (title is not tappable)
-        barButtonItem.isEnabled = false
+        // Keep enabled so font color isn't dimmed by iOS
+        barButtonItem.isEnabled = true
         titleLabel.isUserInteractionEnabled = false
         
         os_log(.debug, log: Self.logger, "Title bar button created: %{public}@ (length: %{public}d)", 
