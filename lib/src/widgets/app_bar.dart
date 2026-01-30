@@ -114,11 +114,17 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
   /// Whether to automatically add a back button (only in fallback mode).
   final bool automaticallyImplyLeading;
 
+  /// Controller for programmatic interaction.
+  final AdaptiveCupertinoAppBarController? controller;
+
   /// Search configuration for native search bar.
   final AdaptiveCupertinoSearchOptions? searchOptions;
 
-  /// Controller for programmatic interaction.
-  final AdaptiveCupertinoAppBarController? controller;
+  /// The minimization factor of the app bar (0.0 to 1.0).
+  ///
+  /// 0.0 means fully expanded (Large Title visible if [largeTitle] is true).
+  /// 1.0 means fully minimized (Standard height, title in middle).
+  final double minimizationFactor;
 
   const AdaptiveCupertinoAppBar({
     Key? key,
@@ -130,6 +136,7 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
     this.searchOptions,
     this.controller,
     this.largeTitle = false,
+    this.minimizationFactor = 0.0,
     this.backgroundColor,
     this.border,
     this.padding,
@@ -251,6 +258,12 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
   void _setupPlatformChannel(int viewId) {
     _appBarChannel = MethodChannel('adaptive_cupertino_ios/app_bar_$viewId');
     _appBarChannel?.setMethodCallHandler(_handleMethodCall);
+
+    // Sync initial shrinkage
+    if (widget.minimizationFactor > 0) {
+      _appBarChannel?.invokeMethod(
+          'setMinimizationFactor', {'factor': widget.minimizationFactor});
+    }
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
@@ -352,6 +365,13 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
         'enabled': widget.largeTitle,
       });
     }
+
+    // Dynamic shrinkage sync
+    if (widget.minimizationFactor != oldWidget.minimizationFactor &&
+        _useNativeAppBar) {
+      _appBarChannel?.invokeMethod(
+          'setMinimizationFactor', {'factor': widget.minimizationFactor});
+    }
   }
 
   @override
@@ -438,22 +458,12 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
 
     // ROUTING: Choose appropriate implementation
     if (canUseNative) {
-      if (_useModernToolbar) {
-        // iOS 26+: Native UIToolbar with pill-shaped buttons
-        if (kDebugMode) {
-          debugPrint('📱 AppBar: Using native iOS 26+ UIToolbar');
-          debugPrint('   Title: $_titleText');
-          debugPrint('   Has leading: ${widget.leading != null}');
-          debugPrint('   Trailing count: ${widget.trailing?.length ?? 0}');
-        }
-        return _buildNativeToolbar();
-      } else if (_useNativeAppBar) {
-        // iOS 18-25: Native UINavigationBar
-        if (kDebugMode) {
-          debugPrint('📱 AppBar: Using native iOS 18-25 UINavigationBar');
-          debugPrint('   Title: $_titleText');
-          debugPrint('   Has leading: ${widget.leading != null}');
-          debugPrint('   Trailing count: ${widget.trailing?.length ?? 0}');
+      if (_useNativeAppBar) {
+        // iOS 18+: Use the modernized NavigationBar factory for all AppBars.
+        // It provides the "True iOS 26" detached pill look and Large Title support.
+        if (kDebugMode && _useModernToolbar) {
+          debugPrint(
+              '📱 AppBar: Using native Modernized UINavigationBar (iOS 26+)');
         }
         return _buildNativeAppBar();
       }
@@ -547,14 +557,23 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       }
     }
 
+    final bool isIOS26Plus = _useModernToolbar;
+    final double baseHeight = widget.largeTitle
+        ? (isIOS26Plus ? 104.0 : 96.0)
+        : (isIOS26Plus ? 52.0 : 44.0);
+    final double shrunkHeight = isIOS26Plus ? 52.0 : 44.0;
+    final double currentHeight = widget.largeTitle
+        ? (baseHeight - (baseHeight - shrunkHeight) * widget.minimizationFactor)
+        : baseHeight;
+
     return SizedBox(
-      height:
-          (widget.largeTitle ? 96.0 : 44.0) + MediaQuery.paddingOf(context).top,
+      height: currentHeight + MediaQuery.paddingOf(context).top,
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/navigation_bar',
         creationParams: {
           'title': _titleText,
           'largeTitle': widget.largeTitle,
+          'minimizationFactor': widget.minimizationFactor,
           'topPadding': MediaQuery.paddingOf(context).top,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,

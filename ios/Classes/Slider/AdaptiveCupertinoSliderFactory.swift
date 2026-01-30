@@ -98,15 +98,16 @@ class AdaptiveCupertinoSliderView: NSObject, FlutterPlatformView {
         // 3. Enabled State
         nativeSlider.isEnabled = (params["enabled"] as? Bool) ?? true
 
-        // 4. iOS 26 "Liquid Glass" specific enhancements
+        // 4. Add Main Slider to View BEFORE Glass Effect
+        _containerView.addSubview(nativeSlider)
+
+        // 5. iOS 26 "Liquid Glass" specific enhancements
         if #available(iOS 26.0, *) {
              applyGlassDesign()
         } else if IOSVersionDetector.isIOS26OrNewer() {
              // Polyfill/Simulate for evaluation if real 26.0 is not yet reported by compiler but check passes
              applyGlassDesign()
         }
-
-        _containerView.addSubview(nativeSlider)
         
         NSLayoutConstraint.activate([
             nativeSlider.leadingAnchor.constraint(equalTo: _containerView.leadingAnchor, constant: 4),

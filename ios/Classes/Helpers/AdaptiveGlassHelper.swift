@@ -27,8 +27,20 @@ class AdaptiveGlassHelper {
 
     /// Creates the native iOS 26 Liquid Glass view using UIGlassEffect
     private static func createModernGlassView(isInteractive: Bool) -> UIView {
-        // Primary: iOS 26+ UIGlassEffect
+        // Container to hold both the effect and a subtle tint
+        let container = UIView()
+        container.backgroundColor = .clear
+        
         let blurView = UIVisualEffectView()
+        blurView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(blurView)
+        
+        NSLayoutConstraint.activate([
+            blurView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            blurView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            blurView.topAnchor.constraint(equalTo: container.topAnchor),
+            blurView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
         
         if #available(iOS 26.0, *),
            let glassEffectClass = NSClassFromString("UIGlassEffect") as? NSObject.Type {
@@ -36,7 +48,7 @@ class AdaptiveGlassHelper {
             let glassEffect = glassEffectClass.init()
             
             if glassEffect.responds(to: NSSelectorFromString("setGlass:")) {
-                glassEffect.setValue(0, forKey: "glass") // Assuming .regular is 0
+                glassEffect.setValue(0, forKey: "glass") // 0 = .regular
             }
             
             if glassEffect.responds(to: NSSelectorFromString("setIsInteractive:")) {
@@ -45,22 +57,44 @@ class AdaptiveGlassHelper {
             
             if let effect = glassEffect as? UIVisualEffect {
                 blurView.effect = effect
-                // Optimization: Improve blending performance
                 blurView.layer.allowsGroupOpacity = false
-                return blurView
+                
+                // ADDITION: Subtle "Milky" milky tint for Liquid Glass definition
+                // This makes the glass visible on pure white or system gray backgrounds.
+                let tint = UIView()
+                tint.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+                tint.translatesAutoresizingMaskIntoConstraints = false
+                container.addSubview(tint)
+                
+                NSLayoutConstraint.activate([
+                    tint.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                    tint.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                    tint.topAnchor.constraint(equalTo: container.topAnchor),
+                    tint.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+                ])
+                
+                os_log(.info, log: logger, "Successfully applied Native Liquid Glass effect with Milky Tint")
+                return container
             }
         }
         
-        os_log(.error, log: logger, "Failed to create UIGlassEffect dynamically, falling back to standard blur")
+        os_log(.error, log: logger, "Failed to create UIGlassEffect dynamically, falling back to standard thin material")
         return createStandardBlurView()
     }
 
     /// Creates the standard fallback blur for older iOS versions
+    /// Creates the standard fallback blur for older iOS versions
     private static func createStandardBlurView() -> UIView {
-        let blurEffect = UIBlurEffect(style: .systemThinMaterial)
+        // Upgrade: Use UltraThin material for that "floating" Liquid look
+        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterial)
         let blurView = UIVisualEffectView(effect: blurEffect)
         
-        os_log(.debug, log: logger, "Created standard systemThinMaterial blur view (fallback)")
+        // Simulating the "Immersive Border" of iOS 26
+        // We add a subtle white glow/border to the view containing this highlight
+        blurView.layer.borderWidth = 0.5
+        blurView.layer.borderColor = UIColor.white.withAlphaComponent(0.15).cgColor
+        
+        os_log(.debug, log: logger, "Created simulated Liquid Glass (UltraThin + Border)")
         return blurView
     }
 
@@ -85,6 +119,10 @@ class AdaptiveGlassHelper {
             view.layer.cornerCurve = .continuous
         }
     }
+    
+
+    
+
 }
 
 /// A specialized view that automatically applies the correct glass effect and geometry.

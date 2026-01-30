@@ -58,7 +58,11 @@ class SheetHost extends StatelessWidget {
         ),
       );
     }
-    return widget;
+    return Container(
+      color: CupertinoColors
+          .transparent, // Chaos-Proof: Ensure no masking of native glass
+      child: widget,
+    );
   }
 }
 

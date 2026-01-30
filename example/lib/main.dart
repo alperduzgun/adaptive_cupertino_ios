@@ -1,6 +1,8 @@
 import 'package:adaptive_cupertino_ios/adaptive_cupertino_ios.dart';
 import 'package:flutter/cupertino.dart';
 
+import 'pages/bento_showcase_page.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -8,9 +10,10 @@ void main() async {
   await IOSVersion.prewarm();
 
   // Phase 2: Register Sheet Content Factory (NATIVE FOCUSED)
-  // This must be in main() to be visible to isolated sibling engines.
   SheetContentFactory.register(
       'complex-sheet', () => const ComplexSheetContent());
+  SheetContentFactory.register(
+      'bento-toolbar-page', () => const BentoShowcasePage());
 
   runApp(const MyApp());
 }
@@ -78,67 +81,91 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  double _minimizationFactor = 0.0; // Yetenek: Otomatik Küçülme 🛡️⚡
 
-  static const List<Widget> _pages = [
-    TabBarDemoPage(),
-    AppBarDemoPage(),
-    CombinedDemoPage(),
-    SettingsPage(),
-  ];
+  PreferredSizeWidget? _buildAppBar() {
+    switch (_selectedIndex) {
+      case 0:
+        return AdaptiveCupertinoToolbar(
+          title: 'Titanium Glass',
+          leadingAction: AdaptiveCupertinoAction(
+            sfSymbolName: 'sparkles',
+            onPressed: () {},
+          ),
+          trailingActions: [
+            AdaptiveCupertinoAction(
+              sfSymbolName: 'plus.circle.fill',
+              onPressed: () {},
+            ),
+            AdaptiveCupertinoAction(
+              sfSymbolName: 'person.crop.circle',
+              onPressed: () {},
+            ),
+          ],
+        );
+      case 1:
+        return AdaptiveCupertinoAppBar(
+          title: const Text('TabBar Demo'),
+          largeTitle: true,
+          minimizationFactor: _minimizationFactor,
+        );
+      case 2:
+        return AdaptiveCupertinoAppBar(
+          title: const Text('Combined Demo'),
+          minimizationFactor: _minimizationFactor,
+        );
+      case 3:
+        return AdaptiveCupertinoAppBar(
+          title: const Text('Settings'),
+          largeTitle: true,
+          minimizationFactor: _minimizationFactor,
+        );
+      default:
+        return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      child: Column(
-        children: [
-          // App Bar at top
-          AdaptiveCupertinoAppBar(
-            title: const Text('adaptive_cupertino_ios'),
-            largeTitle: false,
-            trailing: [
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: const Icon(CupertinoIcons.info_circle),
-                onPressed: () {
-                  showCupertinoDialog(
-                    context: context,
-                    builder: (context) => CupertinoAlertDialog(
-                      title: const Text('About'),
-                      content: const Text(
-                        'This app demonstrates the adaptive_cupertino_ios package.\n\n'
-                        'iOS 18+: Native Liquid Glass UI\n'
-                        'iOS <18: Standard Cupertino widgets',
-                      ),
-                      actions: [
-                        CupertinoDialogAction(
-                          child: const Text('OK'),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFE5E5EA), // Flat Apple System Gray 6
+      ),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          // TabBar Yetenekleri: Scroll ile küçülme (Minimization)
+          if (notification is ScrollUpdateNotification) {
+            final offset = notification.metrics.pixels;
+            setState(() {
+              _minimizationFactor = (offset / 150.0).clamp(0.0, 1.0);
+            });
+          }
+          return false;
+        },
+        child: AdaptiveScaffold(
+          backgroundColor: const Color(0x00000000),
+          extendBodyBehindAppBar: true,
+          appBar: _buildAppBar(),
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              BentoShowcasePage(minimizationFactor: _minimizationFactor),
+              TabBarDemoPage(minimizationFactor: _minimizationFactor),
+              CombinedDemoPage(minimizationFactor: _minimizationFactor),
+              SettingsPage(minimizationFactor: _minimizationFactor),
             ],
           ),
-
-          // Content
-          Expanded(
-            child: _pages[_selectedIndex],
-          ),
-
-          // Tab Bar at bottom
-          AdaptiveCupertinoTabBar(
+          bottomNavigationBar: AdaptiveCupertinoTabBar(
             items: const [
               AdaptiveCupertinoTabItem(
-                label: 'TabBar Demo',
-                icon: CupertinoIcons.square_grid_2x2,
-                selectedIcon: CupertinoIcons.square_grid_2x2_fill,
+                label: 'Featured',
+                icon: CupertinoIcons.sparkles,
+                selectedIcon: CupertinoIcons.sparkles,
               ),
               AdaptiveCupertinoTabItem(
-                label: 'AppBar Demo',
-                icon: CupertinoIcons.rectangle_stack,
-                selectedIcon: CupertinoIcons.rectangle_stack_fill,
+                label: 'Tabs',
+                icon: CupertinoIcons.square_grid_2x2,
+                selectedIcon: CupertinoIcons.square_grid_2x2_fill,
               ),
               AdaptiveCupertinoTabItem(
                 label: 'Combined',
@@ -152,13 +179,15 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
             currentIndex: _selectedIndex,
+            minimizationFactor: _minimizationFactor, // Aktif Yetenek!
             onTap: (index) {
               setState(() {
                 _selectedIndex = index;
+                _minimizationFactor = 0.0; // Tab değişiminde reset
               });
             },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -166,15 +195,19 @@ class _HomePageState extends State<HomePage> {
 
 // Tab Bar Demo Page
 class TabBarDemoPage extends StatelessWidget {
-  const TabBarDemoPage({super.key});
+  final double minimizationFactor;
+  const TabBarDemoPage({super.key, required this.minimizationFactor});
+
+  // FIXED: No dynamic padding during scroll to avoid jitter.
+  // The content starts under the expanded bar and flows naturally.
+  double get _topPadding => 140.0;
 
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        const CupertinoSliverNavigationBar(
-          largeTitle: Text('TabBar Demo'),
-        ),
+        SliverToBoxAdapter(
+            child: SizedBox(height: _topPadding)), // Dynamic NativeBar spacing
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -198,6 +231,23 @@ class TabBarDemoPage extends StatelessWidget {
                 ]),
               ],
             ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                height: 100,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(child: Text('Scroll Item #$index')),
+              ),
+            ),
+            childCount: 30,
           ),
         ),
       ],
@@ -372,7 +422,8 @@ class AppBarDemoPage extends StatelessWidget {
 
 // Combined Demo Page
 class CombinedDemoPage extends StatefulWidget {
-  const CombinedDemoPage({super.key});
+  final double minimizationFactor;
+  const CombinedDemoPage({super.key, required this.minimizationFactor});
 
   @override
   State<CombinedDemoPage> createState() => _CombinedDemoPageState();
@@ -435,11 +486,11 @@ class ComplexSheetContent extends StatelessWidget {
 class _CombinedDemoPageState extends State<CombinedDemoPage> {
   @override
   Widget build(BuildContext context) {
+    // No large title here, so spacing is standard 88.0 (44 + padding)
     return CustomScrollView(
       slivers: [
-        const CupertinoSliverNavigationBar(
-          largeTitle: Text('Combined Demo'),
-        ),
+        const SliverToBoxAdapter(
+            child: SizedBox(height: 88)), // Standard Header spacing
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -447,10 +498,8 @@ class _CombinedDemoPageState extends State<CombinedDemoPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildInfoCard(
-                  'Full Experience',
-                  'This page shows both AppBar and TabBar working together.\n\n'
-                      'On iOS 18+, you\'re seeing the full Liquid Glass experience with '
-                      'native blur effects and fluid animations.',
+                  'Combined Demo',
+                  'Testing both AppBar and TabBar interactions together.',
                 ),
                 const SizedBox(height: 24),
                 const SizedBox(height: 24),
@@ -519,61 +568,46 @@ class _CombinedDemoPageState extends State<CombinedDemoPage> {
 
 // Settings Page
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  final double minimizationFactor;
+  const SettingsPage({super.key, required this.minimizationFactor});
+
+  // FIXED: No dynamic style change here to avoid feedback loops.
+  double get _topPadding => 140.0;
 
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        const CupertinoSliverNavigationBar(
-          largeTitle: Text('Settings'),
-        ),
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                CupertinoListSection.insetGrouped(
-                  header: const Text('About'),
-                  children: [
-                    CupertinoListTile(
-                      title: const Text('Package'),
-                      subtitle: const Text('adaptive_cupertino_ios'),
-                      trailing: const CupertinoListTileChevron(),
-                      onTap: () {},
-                    ),
-                    CupertinoListTile(
-                      title: const Text('Version'),
-                      subtitle: const Text('0.1.0'),
-                      onTap: () {},
-                    ),
-                  ],
+            child: SizedBox(height: _topPadding)), // Dynamic NativeBar spacing
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.white,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                CupertinoListSection.insetGrouped(
-                  header: const Text('Features'),
-                  children: [
-                    CupertinoListTile(
-                      title: const Text('Adaptive TabBar'),
-                      subtitle: const Text('iOS 18+ Liquid Glass support'),
-                      leading: const Icon(
-                        CupertinoIcons.square_grid_2x2,
-                        color: CupertinoColors.systemBlue,
-                      ),
-                      onTap: () {},
-                    ),
-                    CupertinoListTile(
-                      title: const Text('Adaptive AppBar'),
-                      subtitle: const Text('Native UINavigationBar'),
-                      leading: const Icon(
-                        CupertinoIcons.rectangle_stack,
-                        color: CupertinoColors.systemGreen,
-                      ),
-                      onTap: () {},
-                    ),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      const Icon(CupertinoIcons.circle_fill,
+                          size: 10, color: CupertinoColors.systemBlue),
+                      const SizedBox(width: 12),
+                      Text('Setting Option #$index'),
+                      const Spacer(),
+                      const Icon(CupertinoIcons.chevron_right,
+                          size: 14, color: CupertinoColors.systemGrey3),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
+            childCount: 30,
           ),
         ),
       ],

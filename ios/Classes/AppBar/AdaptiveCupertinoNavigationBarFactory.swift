@@ -194,33 +194,31 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
             searchBar.translatesAutoresizingMaskIntoConstraints = false
             _view.addSubview(searchBar)
             
-            // 2. Constraints for NavBar (Fixed 44pt height, pinned using explicit padding)
-            // Note: We use explicit topPadding passed from Flutter because UiKitView's safeAreaLayoutGuide 
-            // can be unreliable during initial layout or resizing.
+            // 2. Constraints for NavBar (PINNED to top and searchBar top)
             NSLayoutConstraint.activate([
                 navigationBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
                 navigationBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
                 navigationBar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
-                navigationBar.heightAnchor.constraint(equalToConstant: 44.0)
+                navigationBar.bottomAnchor.constraint(equalTo: searchBar.topAnchor)
             ])
             
-            // 3. Constraints for SearchBar (Pinned below NavBar)
+            // 3. Constraints for SearchBar (Pinned to bottom of _view)
             NSLayoutConstraint.activate([
                 searchBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
                 searchBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-                searchBar.topAnchor.constraint(equalTo: navigationBar.bottomAnchor),
-                searchBar.heightAnchor.constraint(equalToConstant: 52.0)
+                searchBar.heightAnchor.constraint(equalToConstant: 52.0),
+                searchBar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
             ])
             
         } else {
-            // STANDARD LAYOUT: Navbar fills the space (using explicit padding)
+            // STANDARD LAYOUT: Navbar fills the space
             print("📱 [AppBar] Mode: Standard")
             
             NSLayoutConstraint.activate([
                 navigationBar.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
                 navigationBar.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
                 navigationBar.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding),
-                navigationBar.heightAnchor.constraint(equalToConstant: 44.0)
+                navigationBar.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
             ])
         }
 
@@ -231,49 +229,54 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
     }
 
     private func setupBackgroundBlur() {
-        // Use .systemThinMaterial for modern adaptive contrast
-        let blurEffect = UIBlurEffect(style: .systemThinMaterial)
-        let blurView = UIVisualEffectView(effect: blurEffect)
-        blurView.translatesAutoresizingMaskIntoConstraints = false
-        blurView.backgroundColor = .clear
+        // Use the shared AdaptivePillHeaderView for "True iOS 26" detached capsule architecture.
+        // We apply horizontal and vertical insets to achieve the "floating" effect.
+        // REMOVED: Custom Liquid Glass Background (User request: "kaldır background u")
+        // REMOVED: Custom Liquid Glass Background (User request: "kaldır background u")
+        /*
+        let isIOS26 = IOSVersionDetector.isIOS26OrNewer()
+        // Always enable fading gradient for the true "Liquid Glass" immersion effect.
+        let glassView = AdaptivePillHeaderView(frame: .zero, direction: .top, isInteractive: true, useFadingGradient: true)
+        glassView.translatesAutoresizingMaskIntoConstraints = false
+        _view.insertSubview(glassView, at: 0)
 
-        // Add a "Milky" white tint layer to enhance Liquid Glass effect
-        let tintView = UIView()
-        tintView.backgroundColor = UIColor.white.withAlphaComponent(0.15)
-        tintView.translatesAutoresizingMaskIntoConstraints = false
-        blurView.contentView.addSubview(tintView)
-
-        // Pin tint view
-        NSLayoutConstraint.activate([
-            tintView.leadingAnchor.constraint(equalTo: blurView.contentView.leadingAnchor),
-            tintView.trailingAnchor.constraint(equalTo: blurView.contentView.trailingAnchor),
-            tintView.topAnchor.constraint(equalTo: blurView.contentView.topAnchor),
-            tintView.bottomAnchor.constraint(equalTo: blurView.contentView.bottomAnchor)
-        ])
-
-        _view.addSubview(blurView)
-
-        // Pin to ABSOLUTE edges
-        NSLayoutConstraint.activate([
-            blurView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-            blurView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            blurView.topAnchor.constraint(equalTo: _view.topAnchor),
-            blurView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
-        ])
+        if isIOS26 {
+            // DETACHED CAPSULE: Floating away from edges
+            NSLayoutConstraint.activate([
+                glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 16),
+                glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -16),
+                glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 8),
+                glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -16)
+            ])
+            glassView.layer.cornerRadius = 24
+        } else {
+            // CLASSIC: Attached to edges (iOS 18 fallback style)
+            NSLayoutConstraint.activate([
+                glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+                glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+                glassView.topAnchor.constraint(equalTo: _view.topAnchor),
+                glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+            ])
+            glassView.layer.cornerRadius = 0
+        }
+        */
         
-        // Add a "Glass Edge" separator - a very thin, subtle white line at the bottom
-        // This gives it a "cut glass" look instead of just ending.
-        let edgeLine = UIView()
-        edgeLine.backgroundColor = UIColor.white.withAlphaComponent(0.3)
-        edgeLine.translatesAutoresizingMaskIntoConstraints = false
-        _view.addSubview(edgeLine)
+        // MODERN TRANSPARENCY: Use Appearance API for reliable glass backing
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.titleTextAttributes = [.foregroundColor: UIColor.label]
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
         
-        NSLayoutConstraint.activate([
-            edgeLine.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-            edgeLine.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            edgeLine.bottomAnchor.constraint(equalTo: _view.bottomAnchor),
-            edgeLine.heightAnchor.constraint(equalToConstant: 0.5) // Hairline
-        ])
+        // Remove standard shadows and background images
+        appearance.backgroundImage = UIImage()
+        appearance.shadowImage = UIImage()
+        
+        navigationBar.standardAppearance = appearance
+        navigationBar.compactAppearance = appearance
+        navigationBar.scrollEdgeAppearance = appearance
+        
+        navigationBar.isTranslucent = true
+        navigationBar.backgroundColor = .clear
     }
     
     private func setupSearchController(options: [String: Any]) {
@@ -297,14 +300,14 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         }
         
         // Apply Liquid Glass aesthetic to search bar
+        sc.searchBar.backgroundImage = UIImage() // Remove native box background
+        sc.searchBar.backgroundColor = .clear
+        
         if #available(iOS 13.0, *) {
             let textField = sc.searchBar.searchTextField
-            textField.backgroundColor = .secondarySystemFill // More visible on white backgrounds
+            textField.backgroundColor = .secondarySystemFill.withAlphaComponent(0.12)
             textField.layer.cornerRadius = 10
             textField.clipsToBounds = true
-            
-            // Enhance blur interaction
-            sc.searchBar.backgroundImage = UIImage() // Remove default background
         }
         
         self.searchController = sc
@@ -416,12 +419,22 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
             // 1. Try SF Symbols first (if provided)
             if let iconName = data["iconName"] as? String,
                let image = UIImage(systemName: iconName) {
+                var style: UIBarButtonItem.Style = .plain
+                if #available(iOS 26.0, *), isIOS26 {
+                    style = .prominent
+                }
+                
                 let button = UIBarButtonItem(
                     image: image,
-                    style: .plain,
+                    style: style,
                     target: self,
                     action: isLeading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
                 )
+                
+                if #available(iOS 26.0, *), isIOS26 {
+                    button.hidesSharedBackground = true
+                }
+                
                 button.tag = index
                 return button
             }
@@ -429,12 +442,22 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
             // 2. Fallback to Unicode with proper font mapping
             if let iconCode = data["iconCode"] as? Int {
                 let iconString = String(format: "%C", iconCode)
+                var style: UIBarButtonItem.Style = .plain
+                if #available(iOS 26.0, *), isIOS26 {
+                    style = .prominent
+                }
+                
                 let button = UIBarButtonItem(
                     title: iconString,
-                    style: .plain,
+                    style: style,
                     target: self,
                     action: isLeading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
                 )
+                
+                if #available(iOS 26.0, *), isIOS26 {
+                    button.hidesSharedBackground = true
+                }
+                
                 button.tag = index
 
                 // Apply correct icon font (CupertinoIcons or MaterialIcons)
@@ -464,6 +487,12 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
                 target: self,
                 action: #selector(searchButtonTapped)
             )
+            
+            if #available(iOS 26.0, *), isIOS26 {
+                button.style = .prominent
+                button.hidesSharedBackground = true
+            }
+            
             button.tag = index
             return button
             
@@ -528,10 +557,47 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
                     result(FlutterError(code: "INVALID_ARGS", message: "Invalid argument", details: nil))
                 }
 
+            case "setMinimizationFactor":
+                if let args = call.arguments as? [String: Any],
+                   let factor = args["factor"] as? Double {
+                    self.updateMinimization(factor: CGFloat(factor))
+                    result(nil)
+                } else {
+                    result(FlutterError(code: "INVALID_ARGS", message: "Invalid factor", details: nil))
+                }
+
             default:
                 result(FlutterMethodNotImplemented)
             }
         }
+    }
+
+    private func updateMinimization(factor: CGFloat) {
+        // 1. Calculate the target state
+        // Improved Threshold: Switch to small title early (at 30% scroll)
+        // to avoid clipping the Large Title font as the frame shrinks.
+        let threshold: CGFloat = 0.3
+        let wantsLarge = factor < threshold
+        
+        // 2. Apply state changes if needed
+        if navigationBar.prefersLargeTitles != wantsLarge {
+            print("📱 [AppBar] Toggling Title Mode: \(wantsLarge ? "Large" : "Standard") (Factor: \(factor))")
+            
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+                self.navigationBar.prefersLargeTitles = wantsLarge
+                self.navigationItem.largeTitleDisplayMode = wantsLarge ? .always : .never
+                
+                // FORCE layout update
+                self.navigationBar.setNeedsLayout()
+                self.navigationBar.layoutIfNeeded()
+                
+                // Force container layout to ensure background blur view follows
+                self._view.layoutIfNeeded()
+            }
+        }
+        
+        // 3. Fallback/Safety: Ensure reporting happens on manual factor updates too
+        reportLayout()
     }
     
     // MARK: - UISearchResultsUpdating & UISearchBarDelegate

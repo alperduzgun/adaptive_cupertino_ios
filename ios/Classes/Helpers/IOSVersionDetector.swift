@@ -40,6 +40,7 @@ class IOSVersionDetector {
             return true
         }
 
+
         // Fallback: Runtime version parsing (for beta/simulator edge cases)
         let runtimeCheck = getMajorVersion() >= 26
         if runtimeCheck {

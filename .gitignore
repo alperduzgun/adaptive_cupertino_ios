@@ -9,3 +9,4 @@ build/
 .pub/
 .packages
 pubspec.lock
+external_references/

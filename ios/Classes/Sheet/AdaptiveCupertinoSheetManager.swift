@@ -34,8 +34,13 @@ class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDele
         
         let contentId = params["contentId"] as? String
         
-        // 1. Create a container view controller
-        let contentVC = UIViewController()
+        // 1. Create a container view controller (Rigorous Subclass)
+        let contentVC = AdaptiveSheetViewController()
+        contentVC.onDismiss = {
+            os_log(.info, log: logger, "Sheet dismissed programmatically or via interaction. Triggering cleanup.")
+            shared.cleanupEngine()
+        }
+
         contentVC.view.backgroundColor = .clear // Let the glass effect shine through
         
         // 2. Setup the Sheet Presentation Controller
@@ -45,10 +50,19 @@ class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDele
         }
         
         // 3. Apply Liquid Glass styling (iOS 26+)
-        if IOSVersionDetector.supportsLiquidGlassSheets() {
+        // CHAOS ENGINEERING: On iOS 26+, sheets automatically adopt Liquid Glass.
+        // We only apply the manual effect view on iOS 15-25 (Simulation Mode).
+        if #available(iOS 26.0, *) {
+            os_log(.info, log: logger, "iOS 26+ detected: Opting into Automatic Glass Adoption for sheets.")
+            contentVC.view.backgroundColor = .clear // Transparency is key for lensing
+        } else if IOSVersionDetector.supportsLiquidGlass() {
+            os_log(.info, log: logger, "iOS 18-25 detected: Applying simulated Liquid Glass effect.")
             applyLiquidGlassEffect(to: contentVC.view)
         } else {
-            contentVC.view.backgroundColor = .systemBackground.withAlphaComponent(0.8)
+            // Force Liquid Glass even on older versions to maintain aesthetic (Polyfill)
+            os_log(.info, log: logger, "Older iOS: Forcing Liquid Glass polyfill.")
+            contentVC.view.backgroundColor = .clear
+            applyLiquidGlassEffect(to: contentVC.view)
         }
         
         // 4. Handle Content Embedding (Fail Fast Guard)
@@ -257,16 +271,32 @@ class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDele
     }
     
     func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
-        os_log(.info, log: AdaptiveCupertinoSheetManager.logger, "Sheet was dismissed by user")
-        
+        os_log(.info, log: AdaptiveCupertinoSheetManager.logger, "Sheet was dismissed by user (Interactive)")
+        cleanupEngine()
+    }
+    
+    private func cleanupEngine() {
         // Chaos Remediation: Explicitly dispose of the isolated sibling engine
         // By nullifying the strong reference, we allow FlutterEngineGroup to reclaim resources.
         if AdaptiveCupertinoSheetManager.activeEngine != nil {
             os_log(.info, log: AdaptiveCupertinoSheetManager.logger, "Disposing of isolated sibling engine")
             AdaptiveCupertinoSheetManager.activeEngine = nil
+            
+            // Notify Dart to cleanup registry
+            AdaptiveCupertinoSheetManager.currentChannel?.invokeMethod("onSheetDismissed", arguments: nil)
         }
-        
-        // Notify Dart to cleanup registry
-        AdaptiveCupertinoSheetManager.currentChannel?.invokeMethod("onSheetDismissed", arguments: nil)
+    }
+}
+
+/// A rigorous view controller that guarantees cleanup on dismissal
+class AdaptiveSheetViewController: UIViewController {
+    var onDismiss: (() -> Void)?
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Self-Healing: Detect if we are actually leaving the hierarchy
+        if isBeingDismissed || isMovingFromParent {
+            onDismiss?()
+        }
     }
 }

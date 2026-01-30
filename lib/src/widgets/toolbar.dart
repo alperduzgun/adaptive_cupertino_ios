@@ -290,8 +290,11 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
           .toList();
     }
 
+    final bool isIOS26Plus = _useNativeToolbar;
+    final double adjustedHeight = widget.height + (isIOS26Plus ? 12.0 : 0.0);
+
     return Container(
-      height: widget.height +
+      height: adjustedHeight +
           (widget.isBottom
               ? MediaQuery.paddingOf(context).bottom
               : MediaQuery.paddingOf(context).top),
