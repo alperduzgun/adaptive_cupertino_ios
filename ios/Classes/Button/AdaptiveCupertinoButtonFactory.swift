@@ -241,15 +241,20 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         
         // Dynamic configuration update handler
         button.configurationUpdateHandler = { button in
-            var config = button.configuration
+            guard var config = button.configuration else { return }
 
             switch button.state {
             case .highlighted:
-                config?.background.backgroundColorTransformer = .init { color in
-                    return color.withAlphaComponent(0.7)
+                // For glass, a simple alpha shift on backgroundColor might be invisible
+                // We add an overlay or shift the baseForegroundColor to indicate interaction
+                config.background.backgroundColorTransformer = .init { color in
+                    return color.withAlphaComponent(0.6)
                 }
+                // Also dim the text/icon slightly or shift color
+                config.baseForegroundColor = config.baseForegroundColor?.withAlphaComponent(0.6)
             case .disabled:
-                config?.baseForegroundColor = .systemGray
+                config.baseForegroundColor = .systemGray
+                config.background.customView?.alpha = 0.5
             default:
                 break
             }

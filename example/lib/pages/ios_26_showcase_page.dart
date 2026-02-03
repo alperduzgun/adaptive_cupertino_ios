@@ -190,6 +190,7 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
   bool _switchValue = true;
   double _sliderValue = 0.7;
   int _segmentedValue = 1;
+  int _variantTapCount = 0;
 
   @override
   void initState() {
@@ -568,10 +569,28 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
             child: AdaptiveButton(
               style: style,
               color: color,
-              onPressed: () {},
+              onPressed: () {
+                setState(() => _variantTapCount++);
+                showAdaptiveCupertinoSheet(
+                  context,
+                  contentId: 'showcase-sheet',
+                  isFloating: true,
+                  detents: [AdaptiveSheetDetent.medium],
+                );
+              },
               child: const Text('Preview'),
             ),
           ),
+          if (_variantTapCount > 0) ...[
+            const Spacer(),
+            Center(
+              child: Text(
+                'Taps: $_variantTapCount',
+                style: const TextStyle(
+                    fontSize: 10, color: CupertinoColors.secondaryLabel),
+              ),
+            ),
+          ],
         ],
       ),
     );
