@@ -104,8 +104,9 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
         // 5. iOS 26 "Liquid Glass" specific enhancements
         // Now safe to call, as nativeSwitch is in the hierarchy
         if #available(iOS 26.0, *) {
-             applyGlassDesign()
+             // TRUE iOS 26: Native adoption, no manual injection needed
         } else if IOSVersionDetector.isIOS26OrNewer() {
+             // Experimental Mode (iOS 18-25): Simulate the 26 look
              applyGlassDesign()
         }
 

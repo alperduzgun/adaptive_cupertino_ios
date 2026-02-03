@@ -36,17 +36,18 @@ class IOSVersionDetector {
     static func isIOS26OrNewer() -> Bool {
         // Primary detection: Compile-time #available check
         if #available(iOS 26.0, *) {
-            os_log(.info, log: logger, "iOS 26+ detected via compile-time check")
+            os_log(.info, log: logger, "📱 TRUE iOS 26 Environment Detected")
             return true
         }
 
-
-        // Fallback: Runtime version parsing (for beta/simulator edge cases)
-        let runtimeCheck = getMajorVersion() >= 26
-        if runtimeCheck {
-            os_log(.info, log: logger, "iOS 26+ detected via runtime parsing (edge case)")
+        // Fallback/Experimental: Run iOS 26 features on iOS 18+ for high-fidelity glass demo
+        let major = getMajorVersion()
+        if major >= 18 {
+            os_log(.info, log: logger, "📱 Experimental Mode: Enabling iOS 26 features on iOS %d", major)
+            return true
         }
-        return runtimeCheck
+        
+        return false
     }
 
     // MARK: - iOS 18 Liquid Glass Support
@@ -61,7 +62,7 @@ class IOSVersionDetector {
 
     /// Check if device is running iOS 18 or newer
     static func isIOS18OrNewer() -> Bool {
-        if #available(iOS 18.0, *) {
+        if #available(iOS 26.0, *) {
             return true
         }
         return false

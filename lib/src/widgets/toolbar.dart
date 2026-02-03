@@ -293,18 +293,31 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
     final bool isIOS26Plus = _useNativeToolbar;
     final double adjustedHeight = widget.height + (isIOS26Plus ? 12.0 : 0.0);
 
-    return Container(
-      height: adjustedHeight +
-          (widget.isBottom
-              ? MediaQuery.paddingOf(context).bottom
-              : MediaQuery.paddingOf(context).top),
-      // Note: No decoration here - native LiquidGlassBackgroundView handles the blur & gradient
+    // CHAOS SAFETY: Prevent NaN/Infinite from breaking platform view frame
+    final double rawTopPadding = MediaQuery.paddingOf(context).top;
+    final double topPadding =
+        (rawTopPadding.isNaN || rawTopPadding.isInfinite) ? 0.0 : rawTopPadding;
+
+    final double rawBottomPadding = MediaQuery.paddingOf(context).bottom;
+    final double bottomPadding =
+        (rawBottomPadding.isNaN || rawBottomPadding.isInfinite)
+            ? 0.0
+            : rawBottomPadding;
+
+    final double totalHeight =
+        adjustedHeight + (widget.isBottom ? bottomPadding : topPadding);
+
+    final double validHeight =
+        (totalHeight.isNaN || totalHeight.isInfinite) ? 44.0 : totalHeight;
+
+    return SizedBox(
+      height: validHeight,
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/toolbar',
         creationParams: {
           'title': widget.title,
-          'topPadding': MediaQuery.paddingOf(context).top,
-          'bottomPadding': MediaQuery.paddingOf(context).bottom,
+          'topPadding': topPadding,
+          'bottomPadding': bottomPadding,
           'isBottom': widget.isBottom,
           'enableLiquidGlass': widget.enableLiquidGlass,
           'usePlainTitle': widget.usePlainTitle,

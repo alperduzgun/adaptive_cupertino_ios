@@ -186,13 +186,16 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
     // Set initial selection
     _tabBarChannel!.invokeMethod('selectTab', {'index': widget.currentIndex});
 
-    // Set initial minimization factor
+    // Set initial minimization factor (NaN Safety)
+    var factor = widget.minimizationFactor;
+    if (factor.isNaN || factor.isInfinite) factor = 0.0;
     _tabBarChannel!.invokeMethod(
-        'setMinimizationFactor', {'factor': widget.minimizationFactor});
+        'setMinimizationFactor', {'factor': factor.clamp(0.0, 1.0)});
 
-    // Set initial elevation
-    _tabBarChannel!
-        .invokeMethod('setElevation', {'elevation': widget.elevation});
+    // Set initial elevation (NaN Safety)
+    var elevation = widget.elevation;
+    if (elevation.isNaN || elevation.isInfinite) elevation = 0.0;
+    _tabBarChannel!.invokeMethod('setElevation', {'elevation': elevation});
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
@@ -214,17 +217,25 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
       _tabBarChannel?.invokeMethod('selectTab', {'index': widget.currentIndex});
     }
 
-    // Update minimization factor if changed
-    if (widget.minimizationFactor != oldWidget.minimizationFactor &&
-        _useNativeTabBar) {
+    // Update minimization factor if changed (NaN Safety)
+    var factor = widget.minimizationFactor;
+    if (factor.isNaN || factor.isInfinite) factor = 0.0;
+    var oldFactor = oldWidget.minimizationFactor;
+    if (oldFactor.isNaN || oldFactor.isInfinite) oldFactor = 0.0;
+
+    if (factor != oldFactor && _useNativeTabBar) {
       _tabBarChannel?.invokeMethod(
-          'setMinimizationFactor', {'factor': widget.minimizationFactor});
+          'setMinimizationFactor', {'factor': factor.clamp(0.0, 1.0)});
     }
 
-    // Update elevation if changed
-    if (widget.elevation != oldWidget.elevation && _useNativeTabBar) {
-      _tabBarChannel
-          ?.invokeMethod('setElevation', {'elevation': widget.elevation});
+    // Update elevation if changed (NaN Safety)
+    var elevation = widget.elevation;
+    if (elevation.isNaN || elevation.isInfinite) elevation = 0.0;
+    var oldElevation = oldWidget.elevation;
+    if (oldElevation.isNaN || oldElevation.isInfinite) oldElevation = 0.0;
+
+    if (elevation != oldElevation && _useNativeTabBar) {
+      _tabBarChannel?.invokeMethod('setElevation', {'elevation': elevation});
     }
   }
 
@@ -264,7 +275,7 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
 
     return SizedBox(
       height: 83, // Standard tab bar height + safe area
-      width: double.infinity,
+      width: MediaQuery.sizeOf(context).width,
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/tab_bar',
         creationParams: {

@@ -112,11 +112,10 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         let style = AdaptiveButtonStyle(rawValue: styleString) ?? .glass
         let iconPlacement = IconPlacement(rawValue: iconPlacementString) ?? .leading
 
-        // Create button based on Liquid Glass support (iOS 18+)
+        // Create button based on availability (iOS 18+)
         if #available(iOS 15.0, *) {
-        // Create button based on availability (iOS 26+)
-        if #available(iOS 26.0, *) {
-             // Use native iOS 26+ "Liquid Glass" styles
+        if #available(iOS 18.0, *) {
+             // Use high-fidelity glass simulation for iOS 18+
              button = createModernButton(
                  title: title,
                  style: style,
@@ -151,7 +150,7 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         ])
     }
 
-    @available(iOS 26.0, *)
+    @available(iOS 15.0, *)
     private func createModernButton(
         title: String,
         style: AdaptiveButtonStyle,
@@ -160,27 +159,56 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         iconPlacement: IconPlacement,
         glassEffectID: String? = nil
     ) -> UIButton {
-        var config: UIButton.Configuration
+        var config: UIButton.Configuration = .plain() // Standard base for 15+
 
-        switch style {
-        case .glass:
-            config = UIButton.Configuration.glass()
-        case .glassProminent:
-            config = UIButton.Configuration.prominentGlass()
-        case .glassTinted:
-            config = UIButton.Configuration.glass()
-            if let colorHex = tintColor {
-                 config.baseBackgroundColor = UIColor(hex: colorHex)
+        // MAPPING: Use actual iOS 26 static methods ONLY if available
+        // If on iOS 18-25, we use manual injection for the glass look
+        if #available(iOS 26.0, *) {
+            switch style {
+            case .glass: config = .glass()
+            case .glassProminent: config = .prominentGlass()
+            case .glassTinted: config = .glass()
+            case .glassClear: config = .clearGlass()
+            case .glassIdentity: config = .prominentClearGlass() // Closest to 'Identity' in search
+            case .filled: config = .filled()
+            case .plain: config = .plain()
             }
-        case .glassClear:
-            config = UIButton.Configuration.glass()
-            // In theory, .glass() is already regular. We apply .clear variant via glassEffect logic
-        case .glassIdentity:
-            config = UIButton.Configuration.glass()
-        case .filled:
-             config = UIButton.Configuration.filled()
-        case .plain:
-             config = UIButton.Configuration.plain()
+        } else {
+            // iOS 15 - 25: Manual Glass Simulation
+            config = .plain()
+            
+            // If it's a glass style, we'll inject the custom view later
+            if style.rawValue.contains("glass") {
+                let variant: Int
+                switch style {
+                case .glassClear: variant = 1
+                case .glassIdentity: variant = 2
+                default: variant = 0
+                }
+                
+                // INJECTION: Use the shared helper to create the glass background
+                let glassView = AdaptiveGlassView(frame: .zero, isInteractive: false, variant: variant)
+                config.background.customView = glassView
+            } else if style == .filled {
+                config = .filled()
+            }
+        }
+
+        // Apply shared visual traits (Aggressive for demo)
+        if #available(iOS 26.0, *) {
+            // TRUE iOS 26: Do not add manual properties. Let the native glass shine.
+        } else {
+            if style == .glassProminent {
+                // ELEGANT: Subtle rim highlight for Prominent
+                config.background.strokeColor = UIColor.white.withAlphaComponent(0.2)
+                config.background.strokeWidth = 0.5
+            }
+            
+            if style == .glassTinted, let colorHex = tintColor {
+                 // ELEGANT: Subtle tint wash
+                 config.baseBackgroundColor = UIColor(hex: colorHex).withAlphaComponent(0.15)
+                 config.baseForegroundColor = .label // Keep readable
+            }
         }
 
         config.title = title
@@ -216,17 +244,17 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
 
         let button = UIButton(configuration: config)
         
-        // Apply Glass Effect ID for Liquid Morphing
-        if #available(iOS 26.0, *), let effectID = glassEffectID {
-            // Find the background effect and set its ID
-            // UIButton.Configuration.glass() returns a configuration where
-            // background.visualEffect belongs to the glass effect chain.
-            if let glassEffect = button.configuration?.background.visualEffect {
-                 if glassEffect.responds(to: NSSelectorFromString("setEffectID:")) {
+        // Apply Glass Effect ID and Variants
+        if #available(iOS 26.0, *) {
+            var finalConfig = button.configuration // Get existing config
+            
+            if let glassEffect = finalConfig?.background.visualEffect {
+                 // Set Effect ID for Liquid Morphing
+                 if let effectID = glassEffectID, glassEffect.responds(to: NSSelectorFromString("setEffectID:")) {
                      glassEffect.setValue(effectID, forKey: "effectID")
                  }
                  
-                 // Also apply variants if style is specialized
+                 // Apply variants if style is specialized
                  if style == .glassClear {
                      if glassEffect.responds(to: NSSelectorFromString("setGlass:")) {
                          glassEffect.setValue(1, forKey: "glass") // 1 = .clear
@@ -236,6 +264,9 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
                          glassEffect.setValue(2, forKey: "glass") // 2 = .identity
                      }
                  }
+                 
+                 // Re-assign the configuration to apply changes
+                 button.configuration = finalConfig
             }
         }
         

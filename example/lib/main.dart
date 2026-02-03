@@ -148,10 +148,12 @@ class _HomePageState extends State<HomePage> {
         onNotification: (notification) {
           // TabBar Yetenekleri: Scroll ile küçülme (Minimization)
           if (notification is ScrollUpdateNotification) {
-            final offset = notification.metrics.pixels;
-            setState(() {
-              _minimizationFactor = (offset / 150.0).clamp(0.0, 1.0);
-            });
+            final pixels = notification.metrics.pixels;
+            if (!pixels.isNaN && !pixels.isInfinite) {
+              setState(() {
+                _minimizationFactor = (pixels / 150.0).clamp(0.0, 1.0);
+              });
+            }
           }
           return false;
         },

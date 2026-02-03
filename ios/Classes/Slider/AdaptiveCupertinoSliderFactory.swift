@@ -103,9 +103,9 @@ class AdaptiveCupertinoSliderView: NSObject, FlutterPlatformView {
 
         // 5. iOS 26 "Liquid Glass" specific enhancements
         if #available(iOS 26.0, *) {
-             applyGlassDesign()
+             // TRUE iOS 26: Native adoption, no manual injection needed
         } else if IOSVersionDetector.isIOS26OrNewer() {
-             // Polyfill/Simulate for evaluation if real 26.0 is not yet reported by compiler but check passes
+             // Experimental Mode (iOS 18-25): Simulate the 26 look
              applyGlassDesign()
         }
         

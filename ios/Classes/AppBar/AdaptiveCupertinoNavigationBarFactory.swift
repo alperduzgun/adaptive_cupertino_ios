@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import os.log
 
 /// Platform View Factory for Adaptive Cupertino Navigation Bar
 ///
@@ -115,7 +116,8 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
 
         // Parse top padding from Dart
         if let params = args as? [String: Any], let padding = params["topPadding"] as? NSNumber {
-            self.topPadding = CGFloat(truncating: padding)
+            let p = CGFloat(truncating: padding)
+            self.topPadding = p.isNaN || p.isInfinite ? 0 : p
         }
 
         super.init()
@@ -154,21 +156,13 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         
         // If the calculated height is significantly different from last report, send it.
         // Use a small epsilon to avoid float jitter loops
-        if abs(maxY - lastReportedHeight) > 0.5 {
-            // ABSOLUTE HEIGHT PROTOCOL:
-            // We report the total visual height (including any top system padding it covers).
-            // This simplifies Dart-side math as they can use this as a direct offset.
-            let reportHeight = maxY
-            lastReportedHeight = maxY // We still use absolute Y for de-bouncing
+        // CHAOS SAFETY: Prevent NaN reporting which can break Flutter's layout engine
+        if !maxY.isNaN && !maxY.isInfinite && abs(maxY - lastReportedHeight) > 0.5 {
+            lastReportedHeight = maxY
             
-            print("📱 [AppBar] Reporting Layout Update. Height: \(reportHeight), SafeTop: \(topPadding)")
+            print("📱 [AppBar] Reported layout height: \(maxY)")
             
-            // Channel: "onLayoutChanged"
-            // Args: { "height": double, "safeArea": double }
-            channel.invokeMethod("onLayoutChanged", arguments: [
-                "height": reportHeight,
-                "safeArea": topPadding
-            ])
+            channel.invokeMethod("onLayoutChanged", arguments: ["height": maxY, "safeArea": topPadding])
         }
     }
 
@@ -215,7 +209,7 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         _view.addSubview(navigationBar)
         
         // Apply effect ID to glass backing if available
-        if #available(iOS 26.0, *), let effectID = self.glassEffectID {
+        if #available(iOS 15.0, *), let effectID = self.glassEffectID {
              // Find the glass view (it's inserted at index 0 in setupBackgroundBlur)
              if let glassView = _view.subviews.first(where: { $0 is AdaptiveGlassView }) as? AdaptiveGlassView {
                  // Forward the effectID to the underlying UIVisualEffect
@@ -281,22 +275,29 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
     private func setupBackgroundBlur() {
         // Use the shared AdaptiveGlassView for "True iOS 26" detached capsule architecture.
         // We apply horizontal and vertical insets to achieve the "floating" effect.
-        let isIOS26 = IOSVersionDetector.isIOS26OrNewer()
-        
-        // We use the .identity variant for the navigation bar background to ensure
-        // it doesn't double-tint the status bar area.
-        let glassView = AdaptiveGlassView(frame: .zero, isInteractive: false, variant: 2, applyGeometry: true) // variant 2 = .identity
+        if #available(iOS 26.0, *) {
+            // TRUE iOS 26: Adopt the system's native background effect if possible.
+            // But IF we want the "Detached" look, we still use the polyfill even on iOS 26.
+            // Only stop if we are doing a "Classic" attached bar.
+            
+            // For now, let's keep the high-fidelity polyfill for the DETACHED look, 
+            // but ensure it's safe.
+        }
+
+        // Otherwise (Detached mode OR Legacy 18-25):
+        // Manual Glass Injection for the "Capsule" or "Polyfill" look
+        let glassView = AdaptiveGlassView(frame: .zero, isInteractive: false, variant: 2, applyGeometry: true)
         glassView.translatesAutoresizingMaskIntoConstraints = false
         _view.insertSubview(glassView, at: 0)
         self.glassBackingView = glassView
-        _view.pillBoundView = glassView // Link for hit testing
+        _view.pillBoundView = glassView
 
         if isIOS26 {
-            // DETACHED CAPSULE: Floating away from edges
-            let leading = glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 16)
-            let trailing = glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -16)
-            let top = glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 8)
-            let bottom = glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -8)
+            // DETACHED CAPSULE: Floating away from edges (iOS 26 High-Fidelity)
+            let leading = glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 12)
+            let trailing = glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -12)
+            let top = glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 4)
+            let bottom = glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -4)
             
             self.glassLeadingConstraint = leading
             self.glassTrailingConstraint = trailing
@@ -403,10 +404,6 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         navigationBar.scrollEdgeAppearance = appearance
         navigationBar.compactAppearance = appearance
         
-        // iOS 26+ prefers large titles by default if flag is set
-        if #available(iOS 26.0, *), isIOS26 {
-             navigationBar.prefersLargeTitles = true
-        }
 
         navigationBar.isTranslucent = true
     }

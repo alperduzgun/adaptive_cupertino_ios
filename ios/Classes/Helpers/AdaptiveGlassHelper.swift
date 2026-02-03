@@ -22,8 +22,8 @@ class AdaptiveGlassHelper {
             // iOS 26+ Native Liquid Glass
             return createModernGlassView(isInteractive: isInteractive, variant: variant)
         } else {
-            // iOS < 26 Standard Fallback
-            return createStandardBlurView()
+            // iOS < 26 Standard Fallback (Enhanced with Variant Logic)
+            return createStandardBlurView(variant: variant)
         }
     }
 
@@ -32,21 +32,6 @@ class AdaptiveGlassHelper {
     ///   - isInteractive: Whether the effect responds to touch
     ///   - variant: 0: regular, 1: clear, 2: identity (matching iOS 26 variants)
     private static func createModernGlassView(isInteractive: Bool, variant: Int = 0) -> UIView {
-        // Container to hold both the effect and a subtle tint
-        let container = UIView()
-        container.backgroundColor = .clear
-        
-        let blurView = UIVisualEffectView()
-        blurView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(blurView)
-        
-        NSLayoutConstraint.activate([
-            blurView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            blurView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            blurView.topAnchor.constraint(equalTo: container.topAnchor),
-            blurView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        ])
-        
         if #available(iOS 26.0, *),
            let glassEffectClass = NSClassFromString("UIGlassEffect") as? NSObject.Type {
             
@@ -78,7 +63,8 @@ class AdaptiveGlassHelper {
                 // to prevent them from catching touches intended for underlying controls.
                 glassContainer.isUserInteractionEnabled = isInteractive
                 
-                blurView.effect = effect
+                let blurView = UIVisualEffectView(effect: effect)
+                blurView.translatesAutoresizingMaskIntoConstraints = false
                 blurView.isUserInteractionEnabled = isInteractive
                 blurView.layer.allowsGroupOpacity = false
                 glassContainer.addSubview(blurView)
@@ -90,72 +76,78 @@ class AdaptiveGlassHelper {
                     blurView.bottomAnchor.constraint(equalTo: glassContainer.bottomAnchor)
                 ])
                 
-                // 1. ADDITION: Subtle "Milky" tint
-                if variant != 1 {
-                    let tint = UIView()
-                    tint.isUserInteractionEnabled = false // Decorative
-                    tint.backgroundColor = UIColor.white.withAlphaComponent(0.04)
-                    tint.translatesAutoresizingMaskIntoConstraints = false
-                    glassContainer.addSubview(tint)
-                    
-                    NSLayoutConstraint.activate([
-                        tint.leadingAnchor.constraint(equalTo: glassContainer.leadingAnchor),
-                        tint.trailingAnchor.constraint(equalTo: glassContainer.trailingAnchor),
-                        tint.topAnchor.constraint(equalTo: glassContainer.topAnchor),
-                        tint.bottomAnchor.constraint(equalTo: glassContainer.bottomAnchor)
-                    ])
-                }
-                
-                // 2. SURFACE HIGHLIGHT: 0.5pt white rim for depth definition
-                let rim = UIView()
-                rim.isUserInteractionEnabled = false // Decorative
-                rim.backgroundColor = .clear
-                rim.layer.borderWidth = 0.5
-                rim.layer.borderColor = UIColor.white.withAlphaComponent(0.12).cgColor
-                rim.translatesAutoresizingMaskIntoConstraints = false
-                glassContainer.addSubview(rim)
-                
-                NSLayoutConstraint.activate([
-                    rim.leadingAnchor.constraint(equalTo: glassContainer.leadingAnchor),
-                    rim.trailingAnchor.constraint(equalTo: glassContainer.trailingAnchor),
-                    rim.topAnchor.constraint(equalTo: glassContainer.topAnchor),
-                    rim.bottomAnchor.constraint(equalTo: glassContainer.bottomAnchor)
-                ])
-                
-                // 3. FEATHERED MASK (Scroll Edge Effect)
-                let maskLayer = CAGradientLayer()
-                maskLayer.colors = [
-                    UIColor.black.withAlphaComponent(0.0).cgColor,
-                    UIColor.black.cgColor,
-                    UIColor.black.cgColor,
-                    UIColor.black.withAlphaComponent(0.0).cgColor
-                ]
-                maskLayer.locations = [0.0, 0.05, 0.95, 1.0]
-                glassContainer.layer.mask = maskLayer
-                glassContainer.maskLayer = maskLayer
-                
-                os_log(.info, log: logger, "Successfully applied Native Liquid Glass (Variant: \(variant)) with Rim & Tints")
+                // TRUE iOS 26: No manual tints or rims. Let the system handle it.
+                os_log(.info, log: logger, "Successfully applied Native Liquid Glass (Variant: \(variant))")
                 return glassContainer
             }
         }
         
-        os_log(.error, log: logger, "Failed to create UIGlassEffect dynamically, falling back to standard thin material")
-        return createStandardBlurView()
+        os_log(.error, log: logger, "Failed to create UIGlassEffect dynamically, falling back to enhanced simulation (Variant: \(variant))")
+        return createStandardBlurView(variant: variant)
     }
 
-    /// Creates the standard fallback blur for older iOS versions
-    /// Creates the standard fallback blur for older iOS versions
-    private static func createStandardBlurView() -> UIView {
-        // Upgrade: Use UltraThin material for that "floating" Liquid look
-        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+    /// Creates an enhanced fallback blur for older iOS versions
+    private static func createStandardBlurView(variant: Int = 0) -> UIView {
+        let style: UIBlurEffect.Style
+        let tintAlpha: CGFloat
+        let borderAlpha: CGFloat
+        
+        switch variant {
+        case 1: // Clear
+            style = .systemThinMaterial
+            tintAlpha = 0.0
+            borderAlpha = 0.05
+        case 2: // Identity (Lensing Simulation)
+            style = .systemUltraThinMaterial
+            tintAlpha = 0.05
+            borderAlpha = 0.15
+        default: // Regular
+            style = .systemMaterial
+            tintAlpha = 0.02
+            borderAlpha = 0.1
+        }
+        
+        let blurEffect = UIBlurEffect(style: style)
         let blurView = UIVisualEffectView(effect: blurEffect)
         
-        // Simulating the "Immersive Border" of iOS 26
-        // We add a subtle white glow/border to the view containing this highlight
         blurView.layer.borderWidth = 0.5
-        blurView.layer.borderColor = UIColor.white.withAlphaComponent(0.15).cgColor
+        blurView.layer.borderColor = UIColor.white.withAlphaComponent(borderAlpha).cgColor
+
+        if tintAlpha > 0 {
+            let tint = UIView()
+            tint.backgroundColor = UIColor.white.withAlphaComponent(tintAlpha)
+            tint.translatesAutoresizingMaskIntoConstraints = false
+            blurView.contentView.addSubview(tint)
+            NSLayoutConstraint.activate([
+                tint.leadingAnchor.constraint(equalTo: blurView.contentView.leadingAnchor),
+                tint.trailingAnchor.constraint(equalTo: blurView.contentView.trailingAnchor),
+                tint.topAnchor.constraint(equalTo: blurView.contentView.topAnchor),
+                tint.bottomAnchor.constraint(equalTo: blurView.contentView.bottomAnchor)
+            ])
+        }
         
-        os_log(.debug, log: logger, "Created simulated Liquid Glass (UltraThin + Border)")
+        // ADDITION: Vibrancy for "Liquid" feel
+        if variant != 1 {
+            let vibrancyEffect = UIVibrancyEffect(blurEffect: blurEffect, style: .label)
+            let vibrancyView = UIVisualEffectView(effect: vibrancyEffect)
+            vibrancyView.translatesAutoresizingMaskIntoConstraints = false
+            blurView.contentView.addSubview(vibrancyView)
+            
+            NSLayoutConstraint.activate([
+                vibrancyView.leadingAnchor.constraint(equalTo: blurView.contentView.leadingAnchor),
+                vibrancyView.trailingAnchor.constraint(equalTo: blurView.contentView.trailingAnchor),
+                vibrancyView.topAnchor.constraint(equalTo: blurView.contentView.topAnchor),
+                vibrancyView.bottomAnchor.constraint(equalTo: blurView.contentView.bottomAnchor)
+            ])
+        }
+        
+        // EXPERIMENTAL: Perspective depth for Identity glass
+        if variant == 2 {
+            blurView.layer.zPosition = 10
+            // Increased scale for more obvious lensing simulation
+            blurView.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+        }
+        
         return blurView
     }
 
@@ -165,7 +157,10 @@ class AdaptiveGlassHelper {
     ///   - view: The view to configure
     ///   - radius: The base corner radius
     static func configureModernGeometry(for view: UIView, radius: CGFloat) {
-        view.layer.cornerRadius = radius
+        // CHAOS SAFETY: Prevent NaN or Infinite radius from crashing QuartzCore
+        let safeRadius = radius.isNaN || radius.isInfinite ? 0 : max(0, radius)
+        
+        view.layer.cornerRadius = safeRadius
         view.clipsToBounds = true
         
         // Use dynamic checking for .containerConcentric

@@ -403,8 +403,18 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
         widget.color != null ? _colorToHex(widget.color!) : null;
     final iconPlacementString = _getIconPlacementString();
 
+    // CHAOS SAFETY: Prevent NaN from breaking platform view frame
+    var minSize = widget.minimumSize ?? const Size(100, 44);
+    if (minSize.width.isNaN || minSize.width.isInfinite) {
+      minSize = Size(100, minSize.height);
+    }
+    if (minSize.height.isNaN || minSize.height.isInfinite) {
+      minSize = Size(minSize.width, 44);
+    }
+
     return SizedBox(
-      height: widget.minimumSize?.height ?? 44,
+      width: minSize.width,
+      height: minSize.height,
       child: _NativeGlassButton(
         title: title,
         style: styleString,
@@ -465,6 +475,8 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
         return 'glassClear';
       case AdaptiveButtonStyle.glassIdentity:
         return 'glassIdentity';
+      case AdaptiveButtonStyle.glassTinted:
+        return 'glassTinted';
       default:
         return 'glass';
     }

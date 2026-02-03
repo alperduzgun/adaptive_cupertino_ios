@@ -266,10 +266,13 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
     _appBarChannel = MethodChannel('adaptive_cupertino_ios/app_bar_$viewId');
     _appBarChannel?.setMethodCallHandler(_handleMethodCall);
 
-    // Sync initial shrinkage
-    if (widget.minimizationFactor > 0) {
-      _appBarChannel?.invokeMethod(
-          'setMinimizationFactor', {'factor': widget.minimizationFactor});
+    // Dynamic shrinkage sync with NaN protection
+    var factor = widget.minimizationFactor;
+    if (factor.isNaN || factor.isInfinite) factor = 0.0;
+    factor = factor.clamp(0.0, 1.0);
+
+    if (factor > 0) {
+      _appBarChannel?.invokeMethod('setMinimizationFactor', {'factor': factor});
     }
   }
 
@@ -373,11 +376,16 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
       });
     }
 
-    // Dynamic shrinkage sync
-    if (widget.minimizationFactor != oldWidget.minimizationFactor &&
-        _useNativeAppBar) {
-      _appBarChannel?.invokeMethod(
-          'setMinimizationFactor', {'factor': widget.minimizationFactor});
+    // Dynamic shrinkage sync with NaN protection
+    var factor = widget.minimizationFactor;
+    if (factor.isNaN || factor.isInfinite) factor = 0.0;
+    factor = factor.clamp(0.0, 1.0);
+
+    var oldFactor = oldWidget.minimizationFactor;
+    if (oldFactor.isNaN || oldFactor.isInfinite) oldFactor = 0.0;
+
+    if (factor != oldFactor && _useNativeAppBar) {
+      _appBarChannel?.invokeMethod('setMinimizationFactor', {'factor': factor});
     }
   }
 
@@ -519,19 +527,30 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
         ? (isIOS26Plus ? 104.0 : 96.0)
         : (isIOS26Plus ? 52.0 : 44.0);
     final double shrunkHeight = isIOS26Plus ? 52.0 : 44.0;
+
+    // CHAOS SAFETY: Prevent NaN from breaking platform view frame
+    var factor = widget.minimizationFactor;
+    if (factor.isNaN || factor.isInfinite) factor = 0.0;
+    factor = factor.clamp(0.0, 1.0);
+
     final double currentHeight = widget.largeTitle
-        ? (baseHeight - (baseHeight - shrunkHeight) * widget.minimizationFactor)
+        ? (baseHeight - (baseHeight - shrunkHeight) * factor)
         : baseHeight;
 
+    final double topPadding = MediaQuery.paddingOf(context).top;
+    final double safeTopPadding =
+        topPadding.isNaN || topPadding.isInfinite ? 0.0 : topPadding;
+
     return SizedBox(
-      height: currentHeight + MediaQuery.paddingOf(context).top,
+      height: currentHeight + safeTopPadding,
+      width: MediaQuery.sizeOf(context).width,
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/navigation_bar',
         creationParams: {
           'title': _titleText,
           'largeTitle': widget.largeTitle,
-          'minimizationFactor': widget.minimizationFactor,
-          'topPadding': MediaQuery.paddingOf(context).top,
+          'minimizationFactor': factor,
+          'topPadding': safeTopPadding,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
           if (widget.glassEffectID != null)

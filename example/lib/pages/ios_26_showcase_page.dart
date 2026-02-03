@@ -28,7 +28,7 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
   void initState() {
     super.initState();
     _bgController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 10))
+        AnimationController(vsync: this, duration: const Duration(seconds: 60))
           ..repeat();
   }
 
@@ -71,8 +71,8 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
               ),
               const SizedBox(height: 16),
               _buildMenuCard(
-                'Glass Variants',
-                'Explore .regular, .prominent and .tinted native materials.',
+                'Button Styles',
+                'Explore .glass, .prominent and .clear native button configs.',
                 CupertinoIcons.layers,
                 ShowcaseFeature.variants,
               ),
@@ -190,13 +190,12 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
   bool _switchValue = true;
   double _sliderValue = 0.7;
   int _segmentedValue = 1;
-  int _variantTapCount = 0;
 
   @override
   void initState() {
     super.initState();
     _bgController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 10))
+        AnimationController(vsync: this, duration: const Duration(seconds: 60))
           ..repeat();
   }
 
@@ -237,7 +236,7 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
       case ShowcaseFeature.lensing:
         return 'Lensing';
       case ShowcaseFeature.variants:
-        return 'Variants';
+        return 'Button Styles';
       case ShowcaseFeature.morphing:
         return 'Morphing';
       case ShowcaseFeature.controls:
@@ -307,39 +306,98 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
     return CustomScrollView(
       slivers: [
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
-        SliverPadding(
-          padding: const EdgeInsets.all(20),
-          sliver: SliverGrid.count(
-            crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 1.1,
-            children: [
-              _buildVariantPreview('Regular', AdaptiveButtonStyle.glass),
-              _buildVariantPreview(
-                  'Prominent', AdaptiveButtonStyle.glassProminent),
-              _buildVariantPreview('Clear', AdaptiveButtonStyle.glassClear),
-              _buildVariantPreview(
-                  'Identity', AdaptiveButtonStyle.glassIdentity),
-              _buildVariantPreview(
-                  'Tinted Purple', AdaptiveButtonStyle.glassTinted,
-                  color: CupertinoColors.systemPurple),
-              _buildVariantPreview(
-                  'Tinted Green', AdaptiveButtonStyle.glassTinted,
-                  color: CupertinoColors.systemGreen),
-            ],
-          ),
-        ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _buildInfoSection(
-              'Material Selection',
-              'Use .regular for standard controls and .prominent for high-priority actions. .clear is reserved for media-heavy backdrops.',
-            ),
+            padding: const EdgeInsets.all(20),
+            child: _buildVariantsSection(),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildVariantsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Native Button Configurations'),
+        const SizedBox(height: 12),
+        const Text(
+          'In iOS 26, UIButton.Configuration adds high-fidelity glass variants. Each style represents a different material density and lensing behavior.',
+          style: TextStyle(fontSize: 13, color: CupertinoColors.secondaryLabel),
+        ),
+        const SizedBox(height: 24),
+        _buildButtonVariant(
+          'Glass (.glass)',
+          AdaptiveButtonStyle.glass,
+          'The standard adaptive material. Balanced refraction and milkiness.',
+        ),
+        const SizedBox(height: 20),
+        _buildButtonVariant(
+          'Prominent (.prominentGlass)',
+          AdaptiveButtonStyle.glassProminent,
+          'Higher material density. Designed for primary actions.',
+        ),
+        const SizedBox(height: 20),
+        _buildButtonVariant(
+          'Clear (.clearGlass)',
+          AdaptiveButtonStyle.glassClear,
+          'Zero milkiness. High transparency. Best for visually rich backgrounds.',
+        ),
+        const SizedBox(height: 20),
+        _buildButtonVariant(
+          'Prominent Clear (.prominentClearGlass)',
+          AdaptiveButtonStyle.glassIdentity, // Mapped to this on native side
+          'Maximum lensing (distortion) without the white tint wash.',
+        ),
+        const SizedBox(height: 20),
+        _buildButtonVariant(
+          'Tinted Glass',
+          AdaptiveButtonStyle.glassTinted,
+          'A subtle 15% color wash infused into the glass material.',
+          color: CupertinoColors.systemPurple,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildButtonVariant(
+      String name, AdaptiveButtonStyle style, String desc,
+      {Color? color}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: CupertinoColors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: 8),
+              AdaptiveButton(
+                style: style,
+                color: color,
+                onPressed: () => print('📱 Pressed: $name'),
+                child: const Text('Action'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(desc,
+              style: const TextStyle(
+                  fontSize: 12, color: CupertinoColors.secondaryLabel)),
+        ],
+      ),
     );
   }
 
@@ -549,49 +607,53 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    );
+  }
+
   Widget _buildVariantPreview(String name, AdaptiveButtonStyle style,
-      {Color? color}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: CupertinoColors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(name,
-              style:
-                  const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-          const Spacer(),
-          Center(
-            child: AdaptiveButton(
-              style: style,
-              color: color,
-              onPressed: () {
-                setState(() => _variantTapCount++);
-                showAdaptiveCupertinoSheet(
-                  context,
-                  contentId: 'showcase-sheet',
-                  isFloating: true,
-                  detents: [AdaptiveSheetDetent.medium],
-                );
-              },
-              child: const Text('Preview'),
+      {Color? color, required String description}) {
+    return AdaptiveGlassBox(
+      style: style,
+      borderRadius: 20,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: const BoxDecoration(
+          color: CupertinoColors.transparent,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: const TextStyle(
+                  fontSize: 10, color: CupertinoColors.secondaryLabel),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          if (_variantTapCount > 0) ...[
             const Spacer(),
             Center(
-              child: Text(
-                'Taps: $_variantTapCount',
-                style: const TextStyle(
-                    fontSize: 10, color: CupertinoColors.secondaryLabel),
+              child: AdaptiveButton(
+                style: style,
+                color: color,
+                onPressed: () {
+                  // In True iOS 26, feedback is subtle (Lensing + Z-axis shift)
+                  // We add a console log so you can see it's 100% active
+                  print('📱 [Liquid Glass] Interaction registered: $name');
+                  setState(() {});
+                },
+                child: Text(name.split(' ').first),
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -624,23 +686,35 @@ class _BackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
+      ..maskFilter =
+          const MaskFilter.blur(BlurStyle.normal, 120); // Softer blur
 
     final colors = [
-      CupertinoColors.systemPurple.withOpacity(0.4),
-      CupertinoColors.systemBlue.withOpacity(0.4),
-      CupertinoColors.systemPink.withOpacity(0.3),
-      CupertinoColors.systemYellow.withOpacity(0.2),
+      CupertinoColors.systemPurple.withOpacity(0.2), // Reduced opacity
+      CupertinoColors.systemBlue.withOpacity(0.2),
+      CupertinoColors.systemPink.withOpacity(0.15),
+      CupertinoColors.systemYellow.withOpacity(0.1),
     ];
 
     for (var i = 0; i < colors.length; i++) {
       final angle = (animationValue * 2 * math.pi) + (i * math.pi / 2);
       final offset = Offset(
-        size.width / 2 + math.cos(angle) * 100,
-        size.height / 3 + math.sin(angle * 1.5) * 150,
+        size.width / 2 + math.cos(angle) * 150, // Wider orbit
+        size.height / 3 + math.sin(angle * 1.5) * 200,
       );
-      canvas.drawCircle(
-          offset, 120 + math.sin(angle) * 30, paint..color = colors[i]);
+      canvas.drawCircle(offset, 180 + math.sin(angle) * 50,
+          paint..color = colors[i]); // Larger circles
+    }
+
+    // NEW: Add sharp "Lensing Test" lines for high-fidelity verification
+    final linePaint = Paint()
+      ..color = CupertinoColors.white.withOpacity(0.08) // More subtle lines
+      ..strokeWidth = 1.0;
+
+    for (var i = 0; i < 15; i++) {
+      final x =
+          (size.width / 15 * i + (animationValue * size.width)) % size.width;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
     }
   }
 

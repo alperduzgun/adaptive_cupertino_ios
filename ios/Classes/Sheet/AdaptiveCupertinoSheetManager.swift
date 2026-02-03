@@ -86,7 +86,7 @@ class AdaptiveCupertinoSheetManager: NSObject, UISheetPresentationControllerDele
             
             // Transition Logic: On iOS 18+, we use the "Zoom" transition for the Liquid Glass effect
             // On iOS 17, we can use matchedTransitionSource for similar morphing behavior.
-            if #available(iOS 18.0, *) {
+            if #available(iOS 26.0, *) {
                 // Future-proof: In iOS 18, we can use the zoom transition
                 // contentVC.preferredTransition = .zoom(options: ...) 
             }

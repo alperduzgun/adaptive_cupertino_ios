@@ -69,43 +69,59 @@ class AdaptiveSlider extends StatelessWidget {
   }
 
   Widget _buildNativeIOS26(BuildContext context) {
-    return SizedBox(
-      height: 44, // Standard touch target height
-      child: UiKitView(
-        viewType: 'adaptive_cupertino_ios/slider',
-        creationParams: {
-          'value': value,
-          'min': min,
-          'max': max,
-          'activeColor': activeColor?.value,
-          'thumbColor': thumbColor?.value,
-          'enabled': onChanged != null,
-        },
-        creationParamsCodec: const StandardMessageCodec(),
-        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-          Factory<OneSequenceGestureRecognizer>(
-            () => EagerGestureRecognizer(),
-          ),
-        },
-        onPlatformViewCreated: (int id) {
-          final channel = MethodChannel('adaptive_platform_ui/slider_$id');
-          channel.setMethodCallHandler((call) async {
-            if (call.method == 'valueChanged') {
-              final double newValue = call.arguments['value'];
-              if (onChanged != null) {
-                onChanged!(newValue);
+    // CHAOS SAFETY: Prevent NaN/Infinite from breaking platform view
+    var validValue = value;
+    if (validValue.isNaN || validValue.isInfinite) validValue = 0.0;
+    var validMin = min;
+    if (validMin.isNaN || validMin.isInfinite) validMin = 0.0;
+    var validMax = max;
+    if (validMax.isNaN || validMax.isInfinite) validMax = 1.0;
+
+    return LayoutBuilder(builder: (context, constraints) {
+      // Use parent width if finite, otherwise fallback to 200.0
+      final double width = constraints.hasBoundedWidth
+          ? constraints.maxWidth
+          : (constraints.minWidth > 0 ? constraints.minWidth : 200.0);
+
+      return SizedBox(
+        width: width,
+        height: 44, // Standard touch target height
+        child: UiKitView(
+          viewType: 'adaptive_cupertino_ios/slider',
+          creationParams: {
+            'value': validValue,
+            'min': validMin,
+            'max': validMax,
+            'activeColor': activeColor?.value,
+            'thumbColor': thumbColor?.value,
+            'enabled': onChanged != null,
+          },
+          creationParamsCodec: const StandardMessageCodec(),
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(
+              () => EagerGestureRecognizer(),
+            ),
+          },
+          onPlatformViewCreated: (int id) {
+            final channel = MethodChannel('adaptive_platform_ui/slider_$id');
+            channel.setMethodCallHandler((call) async {
+              if (call.method == 'valueChanged') {
+                final double newValue = call.arguments['value'];
+                if (onChanged != null) {
+                  onChanged!(newValue);
+                }
+              } else if (call.method == 'onChangeStart') {
+                final double newValue = call.arguments['value'];
+                if (onChangeStart != null) onChangeStart!(newValue);
+              } else if (call.method == 'onChangeEnd') {
+                final double newValue = call.arguments['value'];
+                if (onChangeEnd != null) onChangeEnd!(newValue);
               }
-            } else if (call.method == 'onChangeStart') {
-              final double newValue = call.arguments['value'];
-              if (onChangeStart != null) onChangeStart!(newValue);
-            } else if (call.method == 'onChangeEnd') {
-              final double newValue = call.arguments['value'];
-              if (onChangeEnd != null) onChangeEnd!(newValue);
-            }
-          });
-        },
-      ),
-    );
+            });
+          },
+        ),
+      );
+    });
   }
 
   Widget _buildDefaultFallback(BuildContext context) {

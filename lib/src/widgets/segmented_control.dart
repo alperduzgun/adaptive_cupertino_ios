@@ -73,39 +73,47 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
   Widget _buildNativeIOS26(BuildContext context) {
     final int selectedIndex = values.indexOf(selectedValue);
 
-    return SizedBox(
-      height: 32, // Standard iOS segmented control height
-      child: UiKitView(
-        viewType: 'adaptive_cupertino_ios/segmented_control',
-        creationParams: {
-          'labels': !useSFSymbols ? labels : null,
-          'sfSymbols': useSFSymbols ? labels : null,
-          'selectedIndex': selectedIndex,
-          'enabled': enabled,
-          'tintColor': tintColor?.value,
-          'textColor': textColor?.value,
-          'isDark': CupertinoTheme.of(context).brightness == Brightness.dark,
-        },
-        creationParamsCodec: const StandardMessageCodec(),
-        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-          Factory<OneSequenceGestureRecognizer>(
-            () => EagerGestureRecognizer(),
-          ),
-        },
-        onPlatformViewCreated: (int id) {
-          final channel =
-              MethodChannel('adaptive_platform_ui/ios26_segmented_control_$id');
-          channel.setMethodCallHandler((call) async {
-            if (call.method == 'valueChanged') {
-              final int index = call.arguments['index'];
-              if (index >= 0 && index < values.length) {
-                onValueChanged(values[index]);
+    return LayoutBuilder(builder: (context, constraints) {
+      // Use parent width if finite, otherwise fallback to standard width
+      final double width = constraints.hasBoundedWidth
+          ? constraints.maxWidth
+          : (constraints.minWidth > 0 ? constraints.minWidth : 200.0);
+
+      return SizedBox(
+        width: width,
+        height: 32, // Standard iOS segmented control height
+        child: UiKitView(
+          viewType: 'adaptive_cupertino_ios/segmented_control',
+          creationParams: {
+            'labels': !useSFSymbols ? labels : null,
+            'sfSymbols': useSFSymbols ? labels : null,
+            'selectedIndex': selectedIndex,
+            'enabled': enabled,
+            'tintColor': tintColor?.value,
+            'textColor': textColor?.value,
+            'isDark': CupertinoTheme.of(context).brightness == Brightness.dark,
+          },
+          creationParamsCodec: const StandardMessageCodec(),
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(
+              () => EagerGestureRecognizer(),
+            ),
+          },
+          onPlatformViewCreated: (int id) {
+            final channel = MethodChannel(
+                'adaptive_platform_ui/ios26_segmented_control_$id');
+            channel.setMethodCallHandler((call) async {
+              if (call.method == 'valueChanged') {
+                final int index = call.arguments['index'];
+                if (index >= 0 && index < values.length) {
+                  onValueChanged(values[index]);
+                }
               }
-            }
-          });
-        },
-      ),
-    );
+            });
+          },
+        ),
+      );
+    });
   }
 
   Widget _buildDefaultFallback(BuildContext context) {

@@ -186,10 +186,9 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
 
         // Setup appearance based on iOS version
         // CHAOS: Three-tier fallback strategy with compile-time + runtime checks
-        if #available(iOS 26.0, *), isIOS26 {
+        if isIOS26 {
             // iOS 26+: Direct properties (bypass UITabBarAppearance)
-            // Double check: Compile-time (#available) + Runtime (isIOS26)
-            print("🔍 [TabBar-Setup] Using iOS 26+ direct properties")
+            print("🔍 [TabBar-Setup] Using Experimental iOS 26+ features")
             setupIOS26DirectProperties()
         } else if #available(iOS 18.0, *) {
             // iOS 18-25: UITabBarAppearance with Liquid Glass
@@ -271,7 +270,7 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     /// iOS 26+ Direct Properties Setup
     /// BYPASS UITabBarAppearance (interferes with custom colors in iOS 26)
     /// NATIVE: Uses direct property assignment for better color control
-    @available(iOS 26.0, *)
+    @available(iOS 15.0, *)
     private func setupIOS26DirectProperties() {
         // CRITICAL: Enable translucency FIRST
         tabBar.isTranslucent = true
@@ -293,7 +292,7 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     }
 
     /// iOS 18-25: UITabBarAppearance with Liquid Glass
-    @available(iOS 18.0, *)
+    @available(iOS 15.0, *)
     private func setupLiquidGlassAppearance() {
         // Standard appearance (default state)
         let standardAppearance = UITabBarAppearance()
@@ -573,11 +572,15 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
             minimizationRetryCount = 0
         }
         
-        // Store current factor for re-application when elevation changes
-        currentMinimizationFactor = factor
-        
         // HYSTERESIS: Small values are treated as exact zero to prevent "ghost" insets
-        let clampedFactor = factor < 0.01 ? 0.0 : max(0, min(1, factor))
+        // CHAOS SAFETY: Explicitly handle NaN to prevent layout engine crashes
+        var clampedFactor: CGFloat = 0.0
+        if !factor.isNaN && !factor.isInfinite {
+            clampedFactor = factor < 0.01 ? 0.0 : max(0, min(1, factor))
+        }
+        
+        // Track for re-application
+        self.currentMinimizationFactor = clampedFactor
         
         // Dynamic Label Transparency: Fade out text as we minimize
         let labelAlpha = factor < 0.01 ? 1.0 : (1.0 - (max(0, clampedFactor - 0.2) * 5.0))
@@ -601,8 +604,8 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
 
         func applyChanges() {
             // Transition from full-width to a centered "Pill Island"
-            let horizontalInset: CGFloat = 32.0 * clampedFactor 
-            let bottomLift: CGFloat = 20.0 * clampedFactor      
+            let horizontalInset: CGFloat = 24.0 * clampedFactor 
+            let bottomLift: CGFloat = 16.0 * clampedFactor      
             
             self.leadingConstraint.constant = horizontalInset
             self.trailingConstraint.constant = -horizontalInset

@@ -91,6 +91,13 @@ public class AdaptiveCupertinoPlugin: NSObject, FlutterPlugin {
             sliderFactory,
             withId: "adaptive_cupertino_ios/slider"
         )
+
+        // GlassBox PlatformView (Generic Glass Container)
+        let glassBoxFactory = AdaptiveCupertinoGlassBoxFactory(messenger: registrar.messenger())
+        registrar.register(
+            glassBoxFactory,
+            withId: "adaptive_cupertino_ios/glass_box"
+        )
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {

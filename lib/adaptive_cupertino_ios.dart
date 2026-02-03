@@ -7,20 +7,19 @@ library adaptive_cupertino_ios;
 
 // App
 export 'src/app/adaptive_app.dart';
-
+// Platform
+export 'src/platform/bridge.dart';
+export 'src/platform/ios_version.dart';
 // Widgets
 export 'src/widgets/action.dart';
+export 'src/widgets/adaptive_sheet.dart';
 export 'src/widgets/app_bar.dart';
 export 'src/widgets/button.dart';
 export 'src/widgets/dialog.dart';
+export 'src/widgets/glass_box.dart';
 export 'src/widgets/scaffold.dart';
 export 'src/widgets/segmented_control.dart';
 export 'src/widgets/slider.dart';
 export 'src/widgets/switch.dart';
 export 'src/widgets/tab_bar.dart';
 export 'src/widgets/toolbar.dart';
-export 'src/widgets/adaptive_sheet.dart';
-
-// Platform
-export 'src/platform/bridge.dart';
-export 'src/platform/ios_version.dart';
