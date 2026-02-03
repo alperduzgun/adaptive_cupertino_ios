@@ -34,6 +34,18 @@ enum AdaptiveButtonStyle {
   /// Falls back to [filled] on older iOS versions.
   /// **Uses native iOS platform view for true Liquid Glass effect.**
   glassTinted,
+
+  /// iOS 26+ Clear Liquid Glass style (uses native UIButton.Configuration.glass() with .clear variant).
+  ///
+  /// Falls back to [filled] on older iOS versions.
+  /// **Uses native iOS platform view for true Liquid Glass effect.**
+  glassClear,
+
+  /// iOS 26+ Identity Liquid Glass style (uses native UIButton.Configuration.glass() with .identity variant).
+  ///
+  /// Falls back to [filled] on older iOS versions.
+  /// **Uses native iOS platform view for true Liquid Glass effect.**
+  glassIdentity,
 }
 
 /// Icon placement for buttons (iOS 26+).
@@ -132,6 +144,12 @@ class AdaptiveButton extends StatefulWidget {
   /// Border radius (for filled/outlined styles).
   final BorderRadius? borderRadius;
 
+  /// Unique identifier for Liquid Morphing (iOS 26+).
+  ///
+  /// If provided, this button can morph into/from other elements (like sheets)
+  /// with the same [glassEffectID].
+  final String? glassEffectID;
+
   const AdaptiveButton({
     Key? key,
     required this.child,
@@ -144,6 +162,7 @@ class AdaptiveButton extends StatefulWidget {
     this.padding,
     this.minimumSize,
     this.borderRadius,
+    this.glassEffectID,
   }) : super(key: key);
 
   /// Convenience constructor for text button.
@@ -192,6 +211,7 @@ class AdaptiveButton extends StatefulWidget {
     required VoidCallback? onPressed,
     Color? foregroundColor,
     EdgeInsetsGeometry? padding,
+    String? glassEffectID,
   }) : this(
           key: key,
           child: child,
@@ -199,6 +219,7 @@ class AdaptiveButton extends StatefulWidget {
           style: AdaptiveButtonStyle.glass,
           foregroundColor: foregroundColor,
           padding: padding,
+          glassEffectID: glassEffectID,
         );
 
   /// Convenience constructor for Prominent Liquid Glass button (iOS 26+).
@@ -211,6 +232,7 @@ class AdaptiveButton extends StatefulWidget {
     Color? color,
     Color? foregroundColor,
     EdgeInsetsGeometry? padding,
+    String? glassEffectID,
   }) : this(
           key: key,
           child: child,
@@ -219,6 +241,7 @@ class AdaptiveButton extends StatefulWidget {
           color: color,
           foregroundColor: foregroundColor,
           padding: padding,
+          glassEffectID: glassEffectID,
         );
 
   /// Convenience constructor for Tinted Liquid Glass button (iOS 26+).
@@ -230,6 +253,7 @@ class AdaptiveButton extends StatefulWidget {
     required VoidCallback? onPressed,
     required Color tintColor,
     EdgeInsetsGeometry? padding,
+    String? glassEffectID,
   }) : this(
           key: key,
           child: child,
@@ -237,6 +261,39 @@ class AdaptiveButton extends StatefulWidget {
           style: AdaptiveButtonStyle.glassTinted,
           color: tintColor,
           padding: padding,
+          glassEffectID: glassEffectID,
+        );
+
+  /// Convenience constructor for Clear Liquid Glass button (iOS 26+).
+  ///
+  /// **Uses native iOS UIButton.Configuration.glass()** with .clear variant on iOS 26+
+  const AdaptiveButton.glassClear({
+    Key? key,
+    required Widget child,
+    required VoidCallback? onPressed,
+    String? glassEffectID,
+  }) : this(
+          key: key,
+          child: child,
+          onPressed: onPressed,
+          style: AdaptiveButtonStyle.glassClear,
+          glassEffectID: glassEffectID,
+        );
+
+  /// Convenience constructor for Identity Liquid Glass button (iOS 26+).
+  ///
+  /// **Uses native iOS UIButton.Configuration.glass()** with .identity variant on iOS 26+
+  const AdaptiveButton.glassIdentity({
+    Key? key,
+    required Widget child,
+    required VoidCallback? onPressed,
+    String? glassEffectID,
+  }) : this(
+          key: key,
+          child: child,
+          onPressed: onPressed,
+          style: AdaptiveButtonStyle.glassIdentity,
+          glassEffectID: glassEffectID,
         );
 
   @override
@@ -263,7 +320,9 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
         isSimpleContent &&
         (widget.style == AdaptiveButtonStyle.glass ||
             widget.style == AdaptiveButtonStyle.glassProminent ||
-            widget.style == AdaptiveButtonStyle.glassTinted);
+            widget.style == AdaptiveButtonStyle.glassTinted ||
+            widget.style == AdaptiveButtonStyle.glassClear ||
+            widget.style == AdaptiveButtonStyle.glassIdentity);
   }
 
   Future<void> _checkLiquidGlassSupport() async {
@@ -353,6 +412,7 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
         tintColor: tintColorHex,
         icon: iconName,
         iconPlacement: iconPlacementString,
+        glassEffectID: widget.glassEffectID,
         onPressed: widget.onPressed,
       ),
     );
@@ -401,8 +461,10 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
         return 'glass';
       case AdaptiveButtonStyle.glassProminent:
         return 'glassProminent';
-      case AdaptiveButtonStyle.glassTinted:
-        return 'glassTinted';
+      case AdaptiveButtonStyle.glassClear:
+        return 'glassClear';
+      case AdaptiveButtonStyle.glassIdentity:
+        return 'glassIdentity';
       default:
         return 'glass';
     }
@@ -419,7 +481,9 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
     if (useFallbackStyle &&
         (widget.style == AdaptiveButtonStyle.glass ||
             widget.style == AdaptiveButtonStyle.glassProminent ||
-            widget.style == AdaptiveButtonStyle.glassTinted)) {
+            widget.style == AdaptiveButtonStyle.glassTinted ||
+            widget.style == AdaptiveButtonStyle.glassClear ||
+            widget.style == AdaptiveButtonStyle.glassIdentity)) {
       actualStyle = AdaptiveButtonStyle.filled;
     }
 
@@ -530,6 +594,8 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
       case AdaptiveButtonStyle.glass:
       case AdaptiveButtonStyle.glassProminent:
       case AdaptiveButtonStyle.glassTinted:
+      case AdaptiveButtonStyle.glassClear:
+      case AdaptiveButtonStyle.glassIdentity:
       case AdaptiveButtonStyle.filled:
         return ElevatedButton(
           onPressed: widget.onPressed,
@@ -553,6 +619,7 @@ class _NativeGlassButton extends StatefulWidget {
   final String? tintColor;
   final String? icon;
   final String iconPlacement;
+  final String? glassEffectID;
   final VoidCallback? onPressed;
 
   const _NativeGlassButton({
@@ -562,6 +629,7 @@ class _NativeGlassButton extends StatefulWidget {
     this.tintColor,
     this.icon,
     this.iconPlacement = 'leading',
+    this.glassEffectID,
     this.onPressed,
   });
 
@@ -611,6 +679,7 @@ class _NativeGlassButtonState extends State<_NativeGlassButton> {
         if (widget.tintColor != null) 'tintColor': widget.tintColor,
         if (widget.icon != null) 'icon': widget.icon,
         'iconPlacement': widget.iconPlacement,
+        if (widget.glassEffectID != null) 'glassEffectID': widget.glassEffectID,
       },
       creationParamsCodec: const StandardMessageCodec(),
       onPlatformViewCreated: _setupPlatformChannel,

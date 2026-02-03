@@ -91,7 +91,7 @@ class BentoShowcasePage extends StatelessWidget {
                   letterSpacing: -0.4)),
           const SizedBox(height: 2),
           Text(subtitle,
-              style: TextStyle(
+              style: const TextStyle(
                   color: CupertinoColors.secondaryLabel,
                   fontSize: 12,
                   fontWeight: FontWeight.w500)),

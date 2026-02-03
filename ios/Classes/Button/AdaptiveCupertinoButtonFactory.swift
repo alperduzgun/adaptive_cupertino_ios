@@ -39,6 +39,8 @@ enum AdaptiveButtonStyle: String {
     case glass = "glass"
     case glassProminent = "glassProminent"
     case glassTinted = "glassTinted"
+    case glassClear = "glassClear"
+    case glassIdentity = "glassIdentity"
     case filled = "filled"
     case plain = "plain"
 }
@@ -120,7 +122,8 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
                  style: style,
                  tintColor: tintColor,
                  iconName: iconName,
-                 iconPlacement: iconPlacement
+                 iconPlacement: iconPlacement,
+                 glassEffectID: params["glassEffectID"] as? String
              )
         } else {
              // Fallback for older iOS
@@ -154,7 +157,8 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         style: AdaptiveButtonStyle,
         tintColor: String?,
         iconName: String?,
-        iconPlacement: IconPlacement
+        iconPlacement: IconPlacement,
+        glassEffectID: String? = nil
     ) -> UIButton {
         var config: UIButton.Configuration
 
@@ -168,6 +172,11 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
             if let colorHex = tintColor {
                  config.baseBackgroundColor = UIColor(hex: colorHex)
             }
+        case .glassClear:
+            config = UIButton.Configuration.glass()
+            // In theory, .glass() is already regular. We apply .clear variant via glassEffect logic
+        case .glassIdentity:
+            config = UIButton.Configuration.glass()
         case .filled:
              config = UIButton.Configuration.filled()
         case .plain:
@@ -206,6 +215,29 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         )
 
         let button = UIButton(configuration: config)
+        
+        // Apply Glass Effect ID for Liquid Morphing
+        if #available(iOS 26.0, *), let effectID = glassEffectID {
+            // Find the background effect and set its ID
+            // UIButton.Configuration.glass() returns a configuration where
+            // background.visualEffect belongs to the glass effect chain.
+            if let glassEffect = button.configuration?.background.visualEffect {
+                 if glassEffect.responds(to: NSSelectorFromString("setEffectID:")) {
+                     glassEffect.setValue(effectID, forKey: "effectID")
+                 }
+                 
+                 // Also apply variants if style is specialized
+                 if style == .glassClear {
+                     if glassEffect.responds(to: NSSelectorFromString("setGlass:")) {
+                         glassEffect.setValue(1, forKey: "glass") // 1 = .clear
+                     }
+                 } else if style == .glassIdentity {
+                     if glassEffect.responds(to: NSSelectorFromString("setGlass:")) {
+                         glassEffect.setValue(2, forKey: "glass") // 2 = .identity
+                     }
+                 }
+            }
+        }
         
         // Dynamic configuration update handler
         button.configurationUpdateHandler = { button in

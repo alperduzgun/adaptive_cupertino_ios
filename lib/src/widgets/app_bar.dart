@@ -126,6 +126,12 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
   /// 1.0 means fully minimized (Standard height, title in middle).
   final double minimizationFactor;
 
+  /// Unique identifier for Liquid Morphing (iOS 26+).
+  ///
+  /// If provided, the navigation bar's glass backing can morph into/from other
+  /// elements (like sheets or buttons) with the same [glassEffectID].
+  final String? glassEffectID;
+
   const AdaptiveCupertinoAppBar({
     Key? key,
     this.title,
@@ -137,6 +143,7 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
     this.controller,
     this.largeTitle = false,
     this.minimizationFactor = 0.0,
+    this.glassEffectID,
     this.backgroundColor,
     this.border,
     this.padding,
@@ -480,56 +487,6 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
     return _buildFallbackAppBar(context);
   }
 
-  /// Build iOS 26+ native UIToolbar with pill-shaped buttons
-  /// NATIVE BEHAVIOR: iOS 26 SDK automatically groups buttons
-  Widget _buildNativeToolbar() {
-    // Serialize leading widget
-    Map<String, dynamic>? leadingData;
-    if (widget.leadingAction != null) {
-      leadingData = widget.leadingAction!.toMap();
-    } else if (widget.leading != null) {
-      leadingData = WidgetSerializer.serialize(widget.leading!);
-      if (kDebugMode) {
-        debugPrint('📱 [Toolbar] Serialized leading: $leadingData');
-      }
-    }
-
-    // Serialize trailing widgets
-    List<Map<String, dynamic>>? trailingData;
-    if (widget.trailingActions != null) {
-      trailingData = widget.trailingActions!.map((a) => a.toMap()).toList();
-    } else if (widget.trailing != null && widget.trailing!.isNotEmpty) {
-      trailingData = widget.trailing!
-          .map((w) => WidgetSerializer.serialize(w))
-          .whereType<Map<String, dynamic>>()
-          .toList();
-      if (kDebugMode) {
-        debugPrint('📱 [Toolbar] Serialized trailing: $trailingData');
-      }
-    }
-
-    return SizedBox(
-      height: 44.0 + MediaQuery.paddingOf(context).top,
-      child: UiKitView(
-        viewType: 'adaptive_cupertino_ios/toolbar',
-        creationParams: {
-          'title': _titleText,
-          'topPadding': MediaQuery.paddingOf(context).top,
-          if (leadingData != null) 'leading': leadingData,
-          if (trailingData != null) 'trailing': trailingData,
-          if (widget.searchOptions != null)
-            'searchOptions': widget.searchOptions!.toMap(),
-        },
-        creationParamsCodec: const StandardMessageCodec(),
-        onPlatformViewCreated: (int viewId) {
-          _appBarChannel =
-              MethodChannel('adaptive_cupertino_ios/toolbar_$viewId');
-          _appBarChannel?.setMethodCallHandler(_handleMethodCall);
-        },
-      ),
-    );
-  }
-
   /// Build iOS 18-25 native UINavigationBar
   Widget _buildNativeAppBar() {
     // Serialize leading widget
@@ -577,6 +534,8 @@ class _AdaptiveCupertinoAppBarState extends State<AdaptiveCupertinoAppBar> {
           'topPadding': MediaQuery.paddingOf(context).top,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
+          if (widget.glassEffectID != null)
+            'glassEffectID': widget.glassEffectID,
           if (widget.searchOptions != null)
             'searchOptions': widget.searchOptions!.toMap(),
         },

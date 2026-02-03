@@ -40,10 +40,32 @@ class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactor
 /// Custom Container View to intercept layout changes
 class AdaptiveContainerView: UIView {
     var onLayout: (() -> Void)?
+    weak var pillBoundView: UIView? // Reference to the glass capsule
     
     override func layoutSubviews() {
         super.layoutSubviews()
         onLayout?()
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // 1. If we have a pill view, and the touch is outside it, pass through immediately.
+        if let pill = pillBoundView {
+            let pointInPill = convert(point, to: pill)
+            if !pill.point(inside: pointInPill, with: nil) {
+                return nil
+            }
+        }
+        
+        // 2. Otherwise, check children.
+        let view = super.hitTest(point, with: event)
+        
+        // 3. If we hit the container itself or the decorative glass, pass through.
+        // We only want to "catch" the hit if it's a real control (button, search bar).
+        if view == self || view is AdaptiveGlassView || view is GlassContainerView {
+            return nil
+        }
+        
+        return view
     }
 }
 
@@ -62,12 +84,20 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
     private let channel: FlutterMethodChannel
     private var topPadding: CGFloat = 0
     private var searchController: UISearchController?
+    private var glassBackingView: UIView?
+    private var glassEffectID: String?
     
     // De-bouncing layout reports
     private var lastReportedHeight: CGFloat = 0
     
     // STRICT RUNTIME CHECK
     private let isIOS26: Bool
+    
+    // Constraints for fluid minimization
+    private var glassLeadingConstraint: NSLayoutConstraint?
+    private var glassTrailingConstraint: NSLayoutConstraint?
+    private var glassTopConstraint: NSLayoutConstraint?
+    private var glassBottomConstraint: NSLayoutConstraint?
 
     init(
         frame: CGRect,
@@ -151,6 +181,10 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
     }
 
     private func setupNavigationBar(arguments args: Any?) {
+        if let params = args as? [String: Any], let effectID = params["glassEffectID"] as? String {
+            self.glassEffectID = effectID
+        }
+        
         navigationBar = UINavigationBar()
         navigationBar.delegate = self // Set delegate for position(for:)
         navigationBar.backgroundColor = .clear
@@ -180,6 +214,22 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         navigationBar.items = [navigationItem]
         _view.addSubview(navigationBar)
         
+        // Apply effect ID to glass backing if available
+        if #available(iOS 26.0, *), let effectID = self.glassEffectID {
+             // Find the glass view (it's inserted at index 0 in setupBackgroundBlur)
+             if let glassView = _view.subviews.first(where: { $0 is AdaptiveGlassView }) as? AdaptiveGlassView {
+                 // Forward the effectID to the underlying UIVisualEffect
+                 // We need to reach into the internal UIVisualEffectView
+                 for sub in glassView.subviews {
+                     if let blur = sub as? UIVisualEffectView, let effect = blur.effect {
+                         if effect.responds(to: NSSelectorFromString("setEffectID:")) {
+                             effect.setValue(effectID, forKey: "effectID")
+                         }
+                     }
+                 }
+             }
+        }
+
         // Ensure z-order is correct: NavigationBar on top of blur
         _view.bringSubviewToFront(navigationBar)
 
@@ -229,26 +279,32 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
     }
 
     private func setupBackgroundBlur() {
-        // Use the shared AdaptivePillHeaderView for "True iOS 26" detached capsule architecture.
+        // Use the shared AdaptiveGlassView for "True iOS 26" detached capsule architecture.
         // We apply horizontal and vertical insets to achieve the "floating" effect.
-        // REMOVED: Custom Liquid Glass Background (User request: "kaldır background u")
-        // REMOVED: Custom Liquid Glass Background (User request: "kaldır background u")
-        /*
         let isIOS26 = IOSVersionDetector.isIOS26OrNewer()
-        // Always enable fading gradient for the true "Liquid Glass" immersion effect.
-        let glassView = AdaptivePillHeaderView(frame: .zero, direction: .top, isInteractive: true, useFadingGradient: true)
+        
+        // We use the .identity variant for the navigation bar background to ensure
+        // it doesn't double-tint the status bar area.
+        let glassView = AdaptiveGlassView(frame: .zero, isInteractive: false, variant: 2, applyGeometry: true) // variant 2 = .identity
         glassView.translatesAutoresizingMaskIntoConstraints = false
         _view.insertSubview(glassView, at: 0)
+        self.glassBackingView = glassView
+        _view.pillBoundView = glassView // Link for hit testing
 
         if isIOS26 {
             // DETACHED CAPSULE: Floating away from edges
-            NSLayoutConstraint.activate([
-                glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 16),
-                glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -16),
-                glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 8),
-                glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -16)
-            ])
-            glassView.layer.cornerRadius = 24
+            let leading = glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 16)
+            let trailing = glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -16)
+            let top = glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 8)
+            let bottom = glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -8)
+            
+            self.glassLeadingConstraint = leading
+            self.glassTrailingConstraint = trailing
+            self.glassTopConstraint = top
+            self.glassBottomConstraint = bottom
+            
+            NSLayoutConstraint.activate([leading, trailing, top, bottom])
+            AdaptiveGlassHelper.configureModernGeometry(for: glassView, radius: 24)
         } else {
             // CLASSIC: Attached to edges (iOS 18 fallback style)
             NSLayoutConstraint.activate([
@@ -257,9 +313,8 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
                 glassView.topAnchor.constraint(equalTo: _view.topAnchor),
                 glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
             ])
-            glassView.layer.cornerRadius = 0
+            AdaptiveGlassHelper.configureModernGeometry(for: glassView, radius: 0)
         }
-        */
         
         // MODERN TRANSPARENCY: Use Appearance API for reliable glass backing
         let appearance = UINavigationBarAppearance()
@@ -574,29 +629,43 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
 
     private func updateMinimization(factor: CGFloat) {
         // 1. Calculate the target state
-        // Improved Threshold: Switch to small title early (at 30% scroll)
-        // to avoid clipping the Large Title font as the frame shrinks.
         let threshold: CGFloat = 0.3
         let wantsLarge = factor < threshold
         
-        // 2. Apply state changes if needed
-        if navigationBar.prefersLargeTitles != wantsLarge {
-            print("📱 [AppBar] Toggling Title Mode: \(wantsLarge ? "Large" : "Standard") (Factor: \(factor))")
-            
-            UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+        // 2. Fluid Layout Calculations
+        // As we scroll (factor increases from 0 to 1), we want to:
+        // - Reduce margins from 16/8 to 0/0
+        // - Reduce corner radius from 24 to 0
+        let cappedFactor = max(0, min(1, factor))
+        let horizontalMargin = 16 * (1 - cappedFactor)
+        let verticalMargin = 8 * (1 - cappedFactor)
+        let radius = 24 * (1 - cappedFactor)
+        
+        // 3. Apply state changes if needed
+        let modeChanged = navigationBar.prefersLargeTitles != wantsLarge
+        
+        UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+            if modeChanged {
                 self.navigationBar.prefersLargeTitles = wantsLarge
                 self.navigationItem.largeTitleDisplayMode = wantsLarge ? .always : .never
-                
-                // FORCE layout update
-                self.navigationBar.setNeedsLayout()
-                self.navigationBar.layoutIfNeeded()
-                
-                // Force container layout to ensure background blur view follows
-                self._view.layoutIfNeeded()
             }
+            
+            // Fluid Geometry Scaling (Core of "Liquid" feel)
+            if let glass = self._view.subviews.first(where: { $0 is AdaptiveGlassView }) as? AdaptiveGlassView {
+                self.glassLeadingConstraint?.constant = horizontalMargin
+                self.glassTrailingConstraint?.constant = -horizontalMargin
+                self.glassTopConstraint?.constant = self.topPadding + verticalMargin
+                self.glassBottomConstraint?.constant = -verticalMargin
+                
+                AdaptiveGlassHelper.configureModernGeometry(for: glass, radius: radius)
+            }
+            
+            self.navigationBar.setNeedsLayout()
+            self.navigationBar.layoutIfNeeded()
+            self._view.layoutIfNeeded()
         }
         
-        // 3. Fallback/Safety: Ensure reporting happens on manual factor updates too
+        // 4. Fallback/Safety: Ensure reporting happens on manual factor updates too
         reportLayout()
     }
     

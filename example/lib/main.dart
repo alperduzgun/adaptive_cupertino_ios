@@ -2,6 +2,7 @@ import 'package:adaptive_cupertino_ios/adaptive_cupertino_ios.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'pages/bento_showcase_page.dart';
+import 'pages/ios_26_showcase_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,7 +14,11 @@ void main() async {
   SheetContentFactory.register(
       'complex-sheet', () => const ComplexSheetContent());
   SheetContentFactory.register(
+      'showcase-sheet', () => const ShowcaseSheetContent());
+  SheetContentFactory.register(
       'bento-toolbar-page', () => const BentoShowcasePage());
+  SheetContentFactory.register(
+      'ios-26-showcase', () => const IOS26ShowcasePage());
 
   runApp(const MyApp());
 }
@@ -33,6 +38,8 @@ void adaptiveSheetEntrypoint() async {
   // Register the same factories so they are available in this isolate
   SheetContentFactory.register(
       'complex-sheet', () => const ComplexSheetContent());
+  SheetContentFactory.register(
+      'showcase-sheet', () => const ShowcaseSheetContent());
 
   runApp(const AdaptiveSheetApp());
 }
@@ -116,6 +123,12 @@ class _HomePageState extends State<HomePage> {
         );
       case 3:
         return AdaptiveCupertinoAppBar(
+          title: const Text('Showcase'),
+          largeTitle: true,
+          minimizationFactor: _minimizationFactor,
+        );
+      case 4:
+        return AdaptiveCupertinoAppBar(
           title: const Text('Settings'),
           largeTitle: true,
           minimizationFactor: _minimizationFactor,
@@ -152,6 +165,7 @@ class _HomePageState extends State<HomePage> {
               BentoShowcasePage(minimizationFactor: _minimizationFactor),
               TabBarDemoPage(minimizationFactor: _minimizationFactor),
               CombinedDemoPage(minimizationFactor: _minimizationFactor),
+              const IOS26ShowcasePage(),
               SettingsPage(minimizationFactor: _minimizationFactor),
             ],
           ),
@@ -171,6 +185,11 @@ class _HomePageState extends State<HomePage> {
                 label: 'Combined',
                 icon: CupertinoIcons.layers,
                 selectedIcon: CupertinoIcons.layers_fill,
+              ),
+              AdaptiveCupertinoTabItem(
+                label: 'Showcase',
+                icon: CupertinoIcons.lab_flask,
+                selectedIcon: CupertinoIcons.lab_flask_solid,
               ),
               AdaptiveCupertinoTabItem(
                 label: 'Settings',
@@ -611,6 +630,45 @@ class SettingsPage extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class ShowcaseSheetContent extends StatelessWidget {
+  const ShowcaseSheetContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0x00000000),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Native Liquid Sheet'),
+        backgroundColor: Color(0x00000000),
+        border: null,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            children: [
+              const Text(
+                'High-Fidelity Material',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'This sheet is running in a fully isolated isolate. Notice how the glass material bends the main app content behind it.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              AdaptiveButton.glass(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close Sheet'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

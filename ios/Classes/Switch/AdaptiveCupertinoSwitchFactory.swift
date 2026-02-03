@@ -118,20 +118,21 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
 
     private func applyGlassDesign() {
         // In iOS 26 "Liquid Glass", switches have a subtle backdrop blur when off
-        let glassEffect = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
-        glassEffect.translatesAutoresizingMaskIntoConstraints = false
-        glassEffect.layer.cornerRadius = 16 // Match switch pill shape
-        glassEffect.clipsToBounds = true
-        glassEffect.isUserInteractionEnabled = false
+        // Use high-fidelity AdaptiveGlassView
+        let glassView = AdaptiveGlassView(frame: .zero, isInteractive: false, variant: 0, applyGeometry: true)
+        glassView.translatesAutoresizingMaskIntoConstraints = false
         
-        _containerView.insertSubview(glassEffect, belowSubview: nativeSwitch)
+        _containerView.insertSubview(glassView, belowSubview: nativeSwitch)
         
         NSLayoutConstraint.activate([
-            glassEffect.centerXAnchor.constraint(equalTo: nativeSwitch.centerXAnchor),
-            glassEffect.centerYAnchor.constraint(equalTo: nativeSwitch.centerYAnchor),
-            glassEffect.widthAnchor.constraint(equalTo: nativeSwitch.widthAnchor),
-            glassEffect.heightAnchor.constraint(equalTo: nativeSwitch.heightAnchor)
+            glassView.centerXAnchor.constraint(equalTo: nativeSwitch.centerXAnchor),
+            glassView.centerYAnchor.constraint(equalTo: nativeSwitch.centerYAnchor),
+            glassView.widthAnchor.constraint(equalTo: nativeSwitch.widthAnchor),
+            glassView.heightAnchor.constraint(equalTo: nativeSwitch.heightAnchor)
         ])
+        
+        // Match the switch's pill shape exactly
+        AdaptiveGlassHelper.configureModernGeometry(for: glassView, radius: 16)
     }
 
     @objc private func valueChanged() {

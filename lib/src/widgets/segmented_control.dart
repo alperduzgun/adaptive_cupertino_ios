@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -86,6 +87,11 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
           'isDark': CupertinoTheme.of(context).brightness == Brightness.dark,
         },
         creationParamsCodec: const StandardMessageCodec(),
+        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+          Factory<OneSequenceGestureRecognizer>(
+            () => EagerGestureRecognizer(),
+          ),
+        },
         onPlatformViewCreated: (int id) {
           final channel =
               MethodChannel('adaptive_platform_ui/ios26_segmented_control_$id');

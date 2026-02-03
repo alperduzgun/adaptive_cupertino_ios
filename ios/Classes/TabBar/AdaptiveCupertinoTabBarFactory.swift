@@ -19,6 +19,26 @@ class TabBarContainerView: UIView {
         completeInitialLayoutIfNeeded()
     }
     
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // 1. If we have a tabBar (the pill), and the touch is outside it, pass through immediately.
+        if let bar = tabBar {
+            let pointInBar = convert(point, to: bar)
+            if !bar.point(inside: pointInBar, with: nil) {
+                return nil
+            }
+        }
+        
+        // 2. Otherwise, check children.
+        let view = super.hitTest(point, with: event)
+        
+        // 3. If we hit the container itself, pass through.
+        if view == self {
+            return nil
+        }
+        
+        return view
+    }
+    
     /// DRY: Single method for initial layout completion and fade-in
     /// Called from both didMoveToWindow and layoutSubviews as a safety net
     private func completeInitialLayoutIfNeeded() {

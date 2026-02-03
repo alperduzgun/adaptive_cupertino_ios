@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -81,6 +82,11 @@ class AdaptiveSlider extends StatelessWidget {
           'enabled': onChanged != null,
         },
         creationParamsCodec: const StandardMessageCodec(),
+        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+          Factory<OneSequenceGestureRecognizer>(
+            () => EagerGestureRecognizer(),
+          ),
+        },
         onPlatformViewCreated: (int id) {
           final channel = MethodChannel('adaptive_platform_ui/slider_$id');
           channel.setMethodCallHandler((call) async {

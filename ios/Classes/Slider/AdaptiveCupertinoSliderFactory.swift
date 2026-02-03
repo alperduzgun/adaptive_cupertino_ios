@@ -126,20 +126,21 @@ class AdaptiveCupertinoSliderView: NSObject, FlutterPlatformView {
         // In iOS 26 "Liquid Glass", sliders have a thicker, blurred track
         nativeSlider.maximumTrackTintColor = .clear // Hide standard track
         
-        let glassEffect = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
-        glassEffect.translatesAutoresizingMaskIntoConstraints = false
-        glassEffect.layer.cornerRadius = 4
-        glassEffect.clipsToBounds = true
-        glassEffect.isUserInteractionEnabled = false
+        // Use the high-fidelity AdaptiveGlassView for the track
+        let glassView = AdaptiveGlassView(frame: .zero, isInteractive: false, variant: 0, applyGeometry: true)
+        glassView.translatesAutoresizingMaskIntoConstraints = false
         
-        _containerView.insertSubview(glassEffect, belowSubview: nativeSlider)
+        _containerView.insertSubview(glassView, belowSubview: nativeSlider)
         
         NSLayoutConstraint.activate([
-            glassEffect.leadingAnchor.constraint(equalTo: nativeSlider.leadingAnchor),
-            glassEffect.trailingAnchor.constraint(equalTo: nativeSlider.trailingAnchor),
-            glassEffect.centerYAnchor.constraint(equalTo: nativeSlider.centerYAnchor),
-            glassEffect.heightAnchor.constraint(equalToConstant: 8)
+            glassView.leadingAnchor.constraint(equalTo: nativeSlider.leadingAnchor),
+            glassView.trailingAnchor.constraint(equalTo: nativeSlider.trailingAnchor),
+            glassView.centerYAnchor.constraint(equalTo: nativeSlider.centerYAnchor),
+            glassView.heightAnchor.constraint(equalToConstant: 8)
         ])
+        
+        // Custom geometry adjustment for the thin track
+        AdaptiveGlassHelper.configureModernGeometry(for: glassView, radius: 4)
         
         // Custom thumb if supported in iOS 26 (simulated via shadow/glow)
         nativeSlider.layer.shadowColor = UIColor.black.cgColor

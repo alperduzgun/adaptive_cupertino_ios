@@ -4,9 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'app_bar.dart';
-import 'tab_bar.dart';
-
 import 'layout_notification.dart';
+import 'tab_bar.dart';
 
 /// Base breathing room added to the top of the content
 /// to prevent visual cramping under the Liquid Glass header.
@@ -40,6 +39,8 @@ class AdaptiveScaffold extends StatefulWidget {
   /// Whether the body should extend behind the app bar.
   ///
   /// Defaults to false.
+  /// **IMPORTANT for iOS 26:** Setting this to `true` is required for the
+  /// "True iOS 26" look where content flows behind the detached pill header.
   final bool extendBodyBehindAppBar;
 
   /// Key for the scaffold.

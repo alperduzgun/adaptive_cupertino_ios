@@ -13,12 +13,14 @@ class AdaptiveGlassHelper {
 
     /// Creates a glass effect view appropriate for the current iOS version.
     ///
-    /// - Parameter isInteractive: Whether the effect should respond to real-time interaction (iOS 26+)
+    /// - Parameters:
+    ///   - isInteractive: Whether the effect should respond to real-time interaction (iOS 26+)
+    ///   - variant: The visual variant (0: regular, 1: clear, 2: identity)
     /// - Returns: A `UIView` (either a `UIVisualEffectView` or a specialized glass view)
-    static func createGlassView(isInteractive: Bool = true) -> UIView {
+    static func createGlassView(isInteractive: Bool = true, variant: Int = 0) -> UIView {
         if IOSVersionDetector.supportsLiquidGlassSheets() {
             // iOS 26+ Native Liquid Glass
-            return createModernGlassView(isInteractive: isInteractive)
+            return createModernGlassView(isInteractive: isInteractive, variant: variant)
         } else {
             // iOS < 26 Standard Fallback
             return createStandardBlurView()
@@ -26,7 +28,10 @@ class AdaptiveGlassHelper {
     }
 
     /// Creates the native iOS 26 Liquid Glass view using UIGlassEffect
-    private static func createModernGlassView(isInteractive: Bool) -> UIView {
+    /// - Parameters:
+    ///   - isInteractive: Whether the effect responds to touch
+    ///   - variant: 0: regular, 1: clear, 2: identity (matching iOS 26 variants)
+    private static func createModernGlassView(isInteractive: Bool, variant: Int = 0) -> UIView {
         // Container to hold both the effect and a subtle tint
         let container = UIView()
         container.backgroundColor = .clear
@@ -47,34 +52,90 @@ class AdaptiveGlassHelper {
             
             let glassEffect = glassEffectClass.init()
             
+            // Set Variant (.regular, .clear, .identity)
             if glassEffect.responds(to: NSSelectorFromString("setGlass:")) {
-                glassEffect.setValue(0, forKey: "glass") // 0 = .regular
+                glassEffect.setValue(variant, forKey: "glass")
             }
             
+            // Set Interactivity
             if glassEffect.responds(to: NSSelectorFromString("setIsInteractive:")) {
                 glassEffect.setValue(isInteractive, forKey: "isInteractive")
             }
             
+            // LENSING (Real-time light bending)
+            if glassEffect.responds(to: NSSelectorFromString("setRefraction:")) {
+                glassEffect.setValue(2.5, forKey: "refraction")
+            }
+            
             if let effect = glassEffect as? UIVisualEffect {
-                blurView.effect = effect
-                blurView.layer.allowsGroupOpacity = false
+                // Use GlassContainerView as the root container to handle masking
+                let glassContainer = GlassContainerView()
+                glassContainer.isInteractive = isInteractive
+                glassContainer.backgroundColor = .clear
+                glassContainer.translatesAutoresizingMaskIntoConstraints = false
                 
-                // ADDITION: Subtle "Milky" milky tint for Liquid Glass definition
-                // This makes the glass visible on pure white or system gray backgrounds.
-                let tint = UIView()
-                tint.backgroundColor = UIColor.white.withAlphaComponent(0.08)
-                tint.translatesAutoresizingMaskIntoConstraints = false
-                container.addSubview(tint)
+                // IMPORTANT: If not interactive, disable ALL interaction on subviews
+                // to prevent them from catching touches intended for underlying controls.
+                glassContainer.isUserInteractionEnabled = isInteractive
+                
+                blurView.effect = effect
+                blurView.isUserInteractionEnabled = isInteractive
+                blurView.layer.allowsGroupOpacity = false
+                glassContainer.addSubview(blurView)
                 
                 NSLayoutConstraint.activate([
-                    tint.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                    tint.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                    tint.topAnchor.constraint(equalTo: container.topAnchor),
-                    tint.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+                    blurView.leadingAnchor.constraint(equalTo: glassContainer.leadingAnchor),
+                    blurView.trailingAnchor.constraint(equalTo: glassContainer.trailingAnchor),
+                    blurView.topAnchor.constraint(equalTo: glassContainer.topAnchor),
+                    blurView.bottomAnchor.constraint(equalTo: glassContainer.bottomAnchor)
                 ])
                 
-                os_log(.info, log: logger, "Successfully applied Native Liquid Glass effect with Milky Tint")
-                return container
+                // 1. ADDITION: Subtle "Milky" tint
+                if variant != 1 {
+                    let tint = UIView()
+                    tint.isUserInteractionEnabled = false // Decorative
+                    tint.backgroundColor = UIColor.white.withAlphaComponent(0.04)
+                    tint.translatesAutoresizingMaskIntoConstraints = false
+                    glassContainer.addSubview(tint)
+                    
+                    NSLayoutConstraint.activate([
+                        tint.leadingAnchor.constraint(equalTo: glassContainer.leadingAnchor),
+                        tint.trailingAnchor.constraint(equalTo: glassContainer.trailingAnchor),
+                        tint.topAnchor.constraint(equalTo: glassContainer.topAnchor),
+                        tint.bottomAnchor.constraint(equalTo: glassContainer.bottomAnchor)
+                    ])
+                }
+                
+                // 2. SURFACE HIGHLIGHT: 0.5pt white rim for depth definition
+                let rim = UIView()
+                rim.isUserInteractionEnabled = false // Decorative
+                rim.backgroundColor = .clear
+                rim.layer.borderWidth = 0.5
+                rim.layer.borderColor = UIColor.white.withAlphaComponent(0.12).cgColor
+                rim.translatesAutoresizingMaskIntoConstraints = false
+                glassContainer.addSubview(rim)
+                
+                NSLayoutConstraint.activate([
+                    rim.leadingAnchor.constraint(equalTo: glassContainer.leadingAnchor),
+                    rim.trailingAnchor.constraint(equalTo: glassContainer.trailingAnchor),
+                    rim.topAnchor.constraint(equalTo: glassContainer.topAnchor),
+                    rim.bottomAnchor.constraint(equalTo: glassContainer.bottomAnchor)
+                ])
+                
+                // 3. FEATHERED MASK (Scroll Edge Effect)
+                let maskLayer = CAGradientLayer()
+                maskLayer.colors = [
+                    UIColor.black.withAlphaComponent(0.0).cgColor,
+                    UIColor.black.cgColor,
+                    UIColor.black.cgColor,
+                    UIColor.black.withAlphaComponent(0.0).cgColor
+                ]
+                maskLayer.locations = [0.0, 0.05, 0.95, 1.0]
+                glassContainer.layer.mask = maskLayer
+                glassContainer.maskLayer = maskLayer
+                
+                os_log(.info, log: logger, "Successfully applied Native Liquid Glass (Variant: \(variant)) with Rim & Tints")
+                return glassContainer
             }
         }
         
@@ -130,10 +191,13 @@ class AdaptiveGlassHelper {
 class AdaptiveGlassView: UIView {
     private var effectView: UIView?
     private var isInteractive: Bool = true
+    private var variant: Int = 0 // 0: regular, 1: clear, 2: identity
     private var applyGeometry: Bool = true
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        // Default to no interaction to prevent blocking native controls
+        self.isUserInteractionEnabled = false
         setup()
     }
 
@@ -143,9 +207,11 @@ class AdaptiveGlassView: UIView {
     }
     
     /// Convenience initializer for optimized performance
-    convenience init(frame: CGRect, isInteractive: Bool, applyGeometry: Bool = true) {
+    convenience init(frame: CGRect, isInteractive: Bool, variant: Int = 0, applyGeometry: Bool = true) {
         self.init(frame: frame)
         self.isInteractive = isInteractive
+        self.isUserInteractionEnabled = isInteractive // Only enable if specifically requested
+        self.variant = variant
         self.applyGeometry = applyGeometry
         // Re-setup if needed or just use properties in setup()
         refresh()
@@ -160,7 +226,9 @@ class AdaptiveGlassView: UIView {
         // Cleaning up old view if needed (mostly for convenience init usage)
         effectView?.removeFromSuperview()
         
-        let glass = AdaptiveGlassHelper.createGlassView(isInteractive: isInteractive)
+        self.isUserInteractionEnabled = isInteractive // SYNC STATE
+        
+        let glass = AdaptiveGlassHelper.createGlassView(isInteractive: isInteractive, variant: variant)
         glass.translatesAutoresizingMaskIntoConstraints = false
         addSubview(glass)
         
@@ -180,5 +248,24 @@ class AdaptiveGlassView: UIView {
             self.layer.cornerRadius = 0
             self.clipsToBounds = false
         }
+    }
+}
+
+/// A specialized container that handles gradient masking and layout for feathered edges.
+class GlassContainerView: UIView {
+    var maskLayer: CAGradientLayer?
+    var isInteractive: Bool = false
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        maskLayer?.frame = bounds
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // If not interactive, we want this entire view AND IT'S SUBVIEWS to be invisible to hits.
+        if !isInteractive {
+            return nil
+        }
+        return super.hitTest(point, with: event)
     }
 }
