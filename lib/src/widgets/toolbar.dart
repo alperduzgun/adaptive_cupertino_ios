@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart'; // For Colors.black, transparent
+import 'package:flutter/rendering.dart'; // For PlatformViewHitTestBehavior
 import 'package:flutter/services.dart';
 
 import '../platform/ios_version.dart';
@@ -211,39 +214,67 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
           .toList();
     }
 
-    return Container(
-      height: 44.0 + MediaQuery.of(context).padding.top,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            // iOS 26 Liquid Glass: High refractive index surface
-            CupertinoColors.systemBackground
-                .resolveFrom(context)
-                .withOpacity(0.92),
-            // Fluid body
-            CupertinoColors.systemBackground
-                .resolveFrom(context)
-                .withOpacity(0.35),
-            // Dissolve
-            CupertinoColors.systemBackground
-                .resolveFrom(context)
-                .withOpacity(0.0),
+    return ClipRect(
+      child: SizedBox(
+        height: 44.0 + MediaQuery.of(context).padding.top,
+        child: Stack(
+          children: [
+            // 1. Gradient Blur (Masked)
+            ShaderMask(
+              shaderCallback: (rect) {
+                return const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black, Colors.black, Colors.transparent],
+                  stops: [0.0, 0.6, 1.0],
+                ).createShader(rect);
+              },
+              blendMode: BlendMode.dstIn,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+
+            // 2. Gradient Tint (Surface)
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    CupertinoColors.systemBackground
+                        .resolveFrom(context)
+                        .withOpacity(
+                            0.85), // Slightly reduced opacity for blur to show
+                    CupertinoColors.systemBackground
+                        .resolveFrom(context)
+                        .withOpacity(0.2),
+                    CupertinoColors.systemBackground
+                        .resolveFrom(context)
+                        .withOpacity(0.0),
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+
+            // 3. Native Toolbar Content
+            UiKitView(
+              viewType: 'adaptive_cupertino_ios/toolbar',
+              creationParams: {
+                'title': widget.title,
+                'topPadding': MediaQuery.of(context).padding.top,
+                if (leadingData != null) 'leading': leadingData,
+                if (trailingData != null) 'trailing': trailingData,
+              },
+              creationParamsCodec: const StandardMessageCodec(),
+              onPlatformViewCreated: _setupPlatformChannel,
+              hitTestBehavior: PlatformViewHitTestBehavior
+                  .transparent, // Allow touches to pass through empty areas if needed
+            ),
           ],
-          stops: const [0.0, 0.45, 1.0], // Organic decay
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
         ),
-      ),
-      child: UiKitView(
-        viewType: 'adaptive_cupertino_ios/toolbar',
-        creationParams: {
-          'title': widget.title,
-          'topPadding': MediaQuery.of(context).padding.top,
-          if (leadingData != null) 'leading': leadingData,
-          if (trailingData != null) 'trailing': trailingData,
-        },
-        creationParamsCodec: const StandardMessageCodec(),
-        onPlatformViewCreated: _setupPlatformChannel,
       ),
     );
   }

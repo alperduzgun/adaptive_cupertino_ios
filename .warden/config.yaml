@@ -1,0 +1,59 @@
+dependencies:
+  architectural: latest
+  security: latest
+frames:
+- security
+- resilience
+- orphan
+- dart_lint
+frames_config:
+  dart_lint:
+    enabled: true
+  orphan:
+    enabled: true
+  resilience:
+    enabled: true
+  security:
+    enabled: true
+llm:
+  fast_model: claude-code-default
+  model: claude-code-default
+  provider: claude_code
+  smart_model: claude-code-default
+  timeout: 300
+project:
+  frameworks: []
+  language: dart
+  name: adaptive_cupertino_ios
+  type: application
+semantic_search:
+  chroma_path: .warden/embeddings
+  collection_name: warden_adaptive_cupertino_ios
+  database: chromadb
+  enabled: true
+  max_context_tokens: 4000
+  provider: local
+settings:
+  enable_classification: true
+  fail_fast: false
+  mode: normal
+  use_llm: true
+  use_local_llm: false
+version: 1.0.0
+
+# --- Custom Rules Configuration ---
+# To enable your custom rules, uncomment the following lines:
+#
+custom_rules:
+  - .warden/rules/my_custom_rules.yaml
+
+# --- CI/CD Output Configuration ---
+# Generate reports in multiple formats (Markdown, JSON, SARIF)
+#
+# ci:
+#   enabled: true
+#   output:
+#     - format: markdown
+#       path: .warden/reports/warden-report.md
+#     - format: sarif
+#       path: .warden/reports/warden-report.sarif
