@@ -143,10 +143,11 @@ class AdaptiveCupertinoSliderView: NSObject, FlutterPlatformView {
         AdaptiveGlassHelper.configureModernGeometry(for: glassView, radius: 4)
         
         // Custom thumb if supported in iOS 26 (simulated via shadow/glow)
-        nativeSlider.layer.shadowColor = UIColor.black.cgColor
-        nativeSlider.layer.shadowOpacity = 0.2
-        nativeSlider.layer.shadowOffset = CGSize(width: 0, height: 2)
-        nativeSlider.layer.shadowRadius = 4
+        // REMOVED: Applying shadow to the whole slider layer creates a box shadow artifact.
+        // nativeSlider.layer.shadowColor = UIColor.black.cgColor
+        // nativeSlider.layer.shadowOpacity = 0.2
+        // nativeSlider.layer.shadowOffset = CGSize(width: 0, height: 2)
+        // nativeSlider.layer.shadowRadius = 4
     }
 
     @objc private func valueChanged() {

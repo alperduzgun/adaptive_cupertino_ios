@@ -208,9 +208,18 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
     }
   }
 
+  Map<String, dynamic>? _cachedCreationParams;
+
   @override
   void didUpdateWidget(AdaptiveCupertinoTabBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // Update creation params if items changed
+    if (widget.items != oldWidget.items) {
+      _cachedCreationParams = {
+        'items': widget.items.map((item) => item.toMap()).toList(),
+      };
+    }
 
     // Update selection if changed externally
     if (widget.currentIndex != oldWidget.currentIndex && _useNativeTabBar) {
@@ -249,7 +258,7 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
         return const SizedBox.shrink();
       }
     } catch (_) {
-      // Fallback for environments whereView.of fails
+      // Fallback for environments where View.of fails
     }
 
     if (_isCheckingVersion) {
@@ -264,23 +273,17 @@ class _AdaptiveCupertinoTabBarState extends State<AdaptiveCupertinoTabBar> {
   }
 
   Widget _buildNativeTabBar() {
-    if (kDebugMode) {
-      debugPrint('🔍 [TabBar-Dart] Building native TabBar');
-      debugPrint('🔍 [TabBar-Dart] Items count: ${widget.items.length}');
-      for (var i = 0; i < widget.items.length; i++) {
-        final itemMap = widget.items[i].toMap();
-        debugPrint('🔍 [TabBar-Dart] Item $i: $itemMap');
-      }
-    }
+    // Initialize cache if null (first build)
+    _cachedCreationParams ??= {
+      'items': widget.items.map((item) => item.toMap()).toList(),
+    };
 
     return SizedBox(
       height: 83, // Standard tab bar height + safe area
       width: MediaQuery.sizeOf(context).width,
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/tab_bar',
-        creationParams: {
-          'items': widget.items.map((item) => item.toMap()).toList(),
-        },
+        creationParams: _cachedCreationParams,
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: (int viewId) {
           if (kDebugMode) {

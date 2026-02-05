@@ -17,10 +17,14 @@ class AdaptiveGlassBox extends StatelessWidget {
   /// The corner radius of the glass container.
   final double borderRadius;
 
+  /// Unique identifier for Liquid Morphing (iOS 26+).
+  final String? glassEffectID;
+
   const AdaptiveGlassBox({
     super.key,
     this.style = AdaptiveButtonStyle.glass,
     this.borderRadius = 20.0,
+    this.glassEffectID,
     this.child,
   });
 
@@ -59,6 +63,7 @@ class AdaptiveGlassBox extends StatelessWidget {
               creationParams: {
                 'variant': _getVariant(),
                 'borderRadius': safeRadius,
+                if (glassEffectID != null) 'glassEffectID': glassEffectID,
               },
               creationParamsCodec: const StandardMessageCodec(),
             ),

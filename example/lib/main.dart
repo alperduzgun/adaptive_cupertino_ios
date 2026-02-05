@@ -1,11 +1,35 @@
 import 'package:adaptive_cupertino_ios/adaptive_cupertino_ios.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 import 'pages/bento_showcase_page.dart';
+import 'pages/ios_26_settings_showcase.dart';
 import 'pages/ios_26_showcase_page.dart';
+import 'pages/profile_edit_sheet_content.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // PERFORMANCE MONITORING 📊
+  // SchedulerBinding.instance.addTimingsCallback((List<FrameTiming> timings) {
+  //   if (timings.isEmpty) return;
+  //   var totalRaster = 0;
+  //   var totalBuild = 0;
+  //   for (final timing in timings) {
+  //     totalRaster += timing.rasterDuration.inMicroseconds;
+  //     totalBuild += timing.buildDuration.inMicroseconds;
+  //   }
+  //   final avgRaster = totalRaster / timings.length / 1000.0;
+  //   final avgBuild = totalBuild / timings.length / 1000.0;
+  //   final totalFrameTime = avgRaster + avgBuild;
+
+  //   // 16.6ms is target for 60fps, 8.3ms for 120fps (ProMotion)
+  //   final fps = 1000 / totalFrameTime;
+
+  //   // Only log significant drops or periodically to keep logs clean
+  //   print(
+  //       'FPS: ${fps.toStringAsFixed(1)} | Build: ${avgBuild.toStringAsFixed(2)}ms | Raster: ${avgRaster.toStringAsFixed(2)}ms');
+  // });
 
   // Phase 3: Synchronous Version Pre-warming 🛡️⚡
   await IOSVersion.prewarm();
@@ -19,6 +43,8 @@ void main() async {
       'bento-toolbar-page', () => const BentoShowcasePage());
   SheetContentFactory.register(
       'ios-26-showcase', () => const IOS26ShowcasePage());
+  SheetContentFactory.register(
+      'profile-edit-sheet', () => const ProfileEditSheetContent());
 
   runApp(const MyApp());
 }
@@ -93,6 +119,9 @@ class _HomePageState extends State<HomePage> {
   PreferredSizeWidget? _buildAppBar() {
     switch (_selectedIndex) {
       case 0:
+        // Aether Settings has its own Scaffold and AppBar
+        return null;
+      case 1:
         return AdaptiveCupertinoToolbar(
           title: 'Titanium Glass',
           leadingAction: AdaptiveCupertinoAction(
@@ -110,26 +139,20 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         );
-      case 1:
+      case 2:
         return AdaptiveCupertinoAppBar(
           title: const Text('TabBar Demo'),
           largeTitle: true,
           minimizationFactor: _minimizationFactor,
         );
-      case 2:
+      case 3:
         return AdaptiveCupertinoAppBar(
           title: const Text('Combined Demo'),
           minimizationFactor: _minimizationFactor,
         );
-      case 3:
-        return AdaptiveCupertinoAppBar(
-          title: const Text('Showcase'),
-          largeTitle: true,
-          minimizationFactor: _minimizationFactor,
-        );
       case 4:
         return AdaptiveCupertinoAppBar(
-          title: const Text('Settings'),
+          title: const Text('Legacy Showcase'),
           largeTitle: true,
           minimizationFactor: _minimizationFactor,
         );
@@ -140,6 +163,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) {
+      print('🔍 DEBUG ICON DUMP [RUNTIME]:');
+      print('sparkles: ${CupertinoIcons.sparkles.codePoint}');
+      print('square_grid_2x2: ${CupertinoIcons.square_grid_2x2.codePoint}');
+      print(
+          'uiwindow_split_2x1: ${CupertinoIcons.uiwindow_split_2x1.codePoint}');
+      print('layers_alt: ${CupertinoIcons.layers_alt.codePoint}');
+      print('lab_flask: ${CupertinoIcons.lab_flask.codePoint}');
+    }
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFE5E5EA), // Flat Apple System Gray 6
@@ -164,39 +196,47 @@ class _HomePageState extends State<HomePage> {
           body: IndexedStack(
             index: _selectedIndex,
             children: [
+              // 1. Aether Showcase (Default Launch Experience)
+              const AetherSettingsShowcase(),
+              // 2. Bento Components
               BentoShowcasePage(minimizationFactor: _minimizationFactor),
+              // 3. TabBar Demo
               TabBarDemoPage(minimizationFactor: _minimizationFactor),
+              // 4. Combined Demo
               CombinedDemoPage(minimizationFactor: _minimizationFactor),
+              // 5. Legacy Showcase (Hidden/Secondary)
               const IOS26ShowcasePage(),
-              SettingsPage(minimizationFactor: _minimizationFactor),
             ],
           ),
           bottomNavigationBar: AdaptiveCupertinoTabBar(
             items: const [
               AdaptiveCupertinoTabItem(
-                label: 'Featured',
+                label: 'Aether',
                 icon: CupertinoIcons.sparkles,
                 selectedIcon: CupertinoIcons.sparkles,
               ),
               AdaptiveCupertinoTabItem(
-                label: 'Tabs',
+                label: 'Components',
                 icon: CupertinoIcons.square_grid_2x2,
                 selectedIcon: CupertinoIcons.square_grid_2x2_fill,
               ),
               AdaptiveCupertinoTabItem(
-                label: 'Combined',
-                icon: CupertinoIcons.layers,
-                selectedIcon: CupertinoIcons.layers_fill,
+                label: 'Tabs',
+                icon: CupertinoIcons.uiwindow_split_2x1,
+                selectedIcon: CupertinoIcons.uiwindow_split_2x1,
               ),
               AdaptiveCupertinoTabItem(
-                label: 'Showcase',
+                label: 'Sheets',
+                icon: CupertinoIcons.layers_alt,
+                selectedIcon: CupertinoIcons.layers_alt_fill,
+                sfSymbolName:
+                    'square.stack.3d.up', // Explicit Native Symbol 🛡️
+                selectedSfSymbolName: 'square.stack.3d.up.fill',
+              ),
+              AdaptiveCupertinoTabItem(
+                label: 'Legacy',
                 icon: CupertinoIcons.lab_flask,
                 selectedIcon: CupertinoIcons.lab_flask_solid,
-              ),
-              AdaptiveCupertinoTabItem(
-                label: 'Settings',
-                icon: CupertinoIcons.gear,
-                selectedIcon: CupertinoIcons.gear_solid,
               ),
             ],
             currentIndex: _selectedIndex,

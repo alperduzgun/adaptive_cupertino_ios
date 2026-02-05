@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -92,7 +90,26 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
     super.initState();
     // Initialize with preferred sizes to avoid jump
     _topObstruction = widget.appBar?.preferredSize.height ?? 0.0;
-    _bottomObstruction = widget.bottomNavigationBar != null ? 50.0 : 0.0;
+    // Bottom obstruction will be refined in didChangeDependencies to include Safe Area
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      if (widget.bottomNavigationBar != null) {
+        // Initial estimate: Standard 50.0 + Home Indicator
+        _bottomObstruction = 50.0 + MediaQuery.of(context).padding.bottom;
+      } else {
+        _bottomObstruction = 0.0;
+      }
+
+      if (widget.appBar != null) {
+        // Initial estimate: Preferred height + Status bar
+        _topObstruction = widget.appBar!.preferredSize.height +
+            MediaQuery.of(context).padding.top;
+      }
+    }
   }
 
   @override
@@ -174,28 +191,25 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
                     final topPadding = _topObstruction +
                         widget.topPaddingAdjustment +
                         _kLiquidGlassBreathingRoom;
+
+                    // REVERT: Physical Constraint for Liquid Glass
+                    // We want content to flow BEHIND the bottom bar.
+                    // So we do NOT physically padding the bottom.
                     final bottomPadding = _bottomObstruction;
 
                     // AUTO-OFFSET LOGIC (Global Fix):
-                    // If extendBodyBehindAppBar is FALSE (default), we must manually push the content down
-                    // to simulate standard Scaffold behavior.
-                    // If TRUE, we leave it at 0, allowing content to flow behind (Liquid Glass).
                     final double effectiveContentTopPadding =
                         widget.extendBodyBehindAppBar ? 0.0 : topPadding;
 
-                    // For the injected MediaQuery, we typically want to tell the child:
-                    // "Here is the safe area you SHOULD respect if you were drawing from the top".
-                    // However, if we've already pushed them down via Padding, reporting the top padding again
-                    // in MediaQuery might cause them to double-pad (e.g. ListView).
-                    // But standard Scaffold behaves this way (Body is offset, MQ.padding.top is still status bar).
-                    // Wait, standard Scaffold removes the consumed padding from MQ?
-                    // No, Scaffold body usually sees 0 top padding if it's below AppBar.
-                    // Let's emulate that: If auto-padded, report 0 (or original status bar? No, 0 relative to parent).
-                    // Actually, let's keep it simple: Report the full obstruction in MQ for transparency support (bottom arg),
-                    // but for top, if we pushed it down, the effective remaining 'safe area' relative to the new top is 0.
+                    // We allow body to extend to the bottom (behind the bar).
+                    const double effectiveContentBottomPadding = 0.0;
 
+                    // For the injected MediaQuery:
+                    // We tell the child about the bottom obstruction so it can pad its list end.
                     final double effectiveInjectedTopPadding =
                         widget.extendBodyBehindAppBar ? topPadding : 0.0;
+
+                    final double effectiveInjectedBottomPadding = bottomPadding;
 
                     return Padding(
                       padding: EdgeInsets.only(top: effectiveContentTopPadding),
@@ -203,7 +217,7 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
                         data: mediaQuery.copyWith(
                           padding: padding.copyWith(
                             top: effectiveInjectedTopPadding,
-                            bottom: bottomPadding,
+                            bottom: effectiveInjectedBottomPadding,
                           ),
                         ),
                         child: widget.body,
@@ -232,26 +246,45 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
 
               // 3. Custom Bottom Navigation Bar at the bottom
               if (widget.bottomNavigationBar != null)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: MediaQuery(
-                    data: MediaQuery.of(context).copyWith(
-                      padding: MediaQuery.viewPaddingOf(context),
-                    ),
-                    child: widget.bottomNavigationBar!,
-                  ),
+                Builder(
+                  builder: (context) {
+                    final mediaQuery = MediaQuery.of(context);
+                    final viewPadding = MediaQuery.viewPaddingOf(context);
+
+                    // SMART NESTING:
+                    final bool isNested =
+                        mediaQuery.padding.bottom > viewPadding.bottom;
+
+                    final double lift =
+                        isNested ? mediaQuery.padding.bottom : 0.0;
+
+                    // If lifted, neutralize internal padding (pass 0 bottom).
+                    final double injectedBottomPadding =
+                        isNested ? 0.0 : viewPadding.bottom;
+
+                    return Positioned(
+                      bottom: lift,
+                      left: 0,
+                      right: 0,
+                      child: MediaQuery(
+                        data: mediaQuery.copyWith(
+                          padding: viewPadding.copyWith(
+                              bottom: injectedBottomPadding),
+                        ),
+                        child: widget.bottomNavigationBar!,
+                      ),
+                    );
+                  },
                 ),
 
               // 4. Floating Action Button
               if (widget.floatingActionButton != null)
                 Positioned(
                   right: 16,
-                  bottom: (widget.bottomNavigationBar != null || Platform.isIOS
-                          ? 80
-                          : 16) +
-                      MediaQuery.paddingOf(context).bottom,
+                  bottom: (_bottomObstruction > 0
+                          ? _bottomObstruction
+                          : MediaQuery.paddingOf(context).bottom) +
+                      16.0,
                   child: widget.floatingActionButton!,
                 ),
             ],

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../platform/ios_version.dart';
+import 'popup_menu.dart'; // For definition
 
 /// Button style for Adaptive buttons.
 enum AdaptiveButtonStyle {
@@ -150,6 +151,14 @@ class AdaptiveButton extends StatefulWidget {
   /// with the same [glassEffectID].
   final String? glassEffectID;
 
+  /// Optional actions for a pull-down menu (iOS 14+).
+  ///
+  /// If provided, long-pressing (or tapping, depending on OS) will show a native menu.
+  final List<AdaptivePopupMenuItem>? menuActions;
+
+  /// Callback when a menu item is selected (native only).
+  final ValueChanged<dynamic>? onMenuSelected;
+
   const AdaptiveButton({
     Key? key,
     required this.child,
@@ -163,6 +172,8 @@ class AdaptiveButton extends StatefulWidget {
     this.minimumSize,
     this.borderRadius,
     this.glassEffectID,
+    this.menuActions,
+    this.onMenuSelected,
   }) : super(key: key);
 
   /// Convenience constructor for text button.
@@ -423,6 +434,8 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
         icon: iconName,
         iconPlacement: iconPlacementString,
         glassEffectID: widget.glassEffectID,
+        menuActions: widget.menuActions,
+        onMenuSelected: widget.onMenuSelected,
         onPressed: widget.onPressed,
       ),
     );
@@ -632,6 +645,8 @@ class _NativeGlassButton extends StatefulWidget {
   final String? icon;
   final String iconPlacement;
   final String? glassEffectID;
+  final List<AdaptivePopupMenuItem>? menuActions;
+  final ValueChanged<dynamic>? onMenuSelected;
   final VoidCallback? onPressed;
 
   const _NativeGlassButton({
@@ -642,6 +657,8 @@ class _NativeGlassButton extends StatefulWidget {
     this.icon,
     this.iconPlacement = 'leading',
     this.glassEffectID,
+    this.menuActions,
+    this.onMenuSelected,
     this.onPressed,
   });
 
@@ -663,6 +680,13 @@ class _NativeGlassButtonState extends State<_NativeGlassButton> {
       case 'onPressed':
         widget.onPressed?.call();
         break;
+      case 'onMenuAction':
+        final index = call.arguments['index'] as int;
+        if (widget.menuActions != null && index < widget.menuActions!.length) {
+          final value = widget.menuActions![index].value;
+          widget.onMenuSelected?.call(value);
+        }
+        break;
     }
   }
 
@@ -682,6 +706,23 @@ class _NativeGlassButtonState extends State<_NativeGlassButton> {
 
   @override
   Widget build(BuildContext context) {
+    // Serialize menu actions if present
+    List<Map<String, dynamic>>? serializedMenuActions;
+    if (widget.menuActions != null) {
+      serializedMenuActions = widget.menuActions!.map((action) {
+        String label = 'Action';
+        if (action.child is Text) {
+          label = (action.child as Text).data ?? 'Action';
+        }
+        return {
+          'label': label,
+          'isDestructive': action.isDestructive,
+          // We might want to support icons in menu items too, but AdaptivePopupMenuItem doesn't explicitly have it in the separate file definition yet.
+          // Let's assume for now we just use text.
+        };
+      }).toList();
+    }
+
     return UiKitView(
       viewType: 'adaptive_cupertino_ios/button',
       creationParams: {
@@ -692,6 +733,7 @@ class _NativeGlassButtonState extends State<_NativeGlassButton> {
         if (widget.icon != null) 'icon': widget.icon,
         'iconPlacement': widget.iconPlacement,
         if (widget.glassEffectID != null) 'glassEffectID': widget.glassEffectID,
+        if (serializedMenuActions != null) 'menuActions': serializedMenuActions,
       },
       creationParamsCodec: const StandardMessageCodec(),
       onPlatformViewCreated: _setupPlatformChannel,

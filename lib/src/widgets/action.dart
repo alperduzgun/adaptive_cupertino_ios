@@ -91,6 +91,7 @@ class AdaptiveCupertinoAction {
       } else if (icon != null) {
         data['iconCode'] = icon!.codePoint;
         data['iconFamily'] = icon!.fontFamily;
+        data['iconPackage'] = icon!.fontPackage;
       } else if (label != null) {
         data['label'] = label; // Text based search button
       }
@@ -101,6 +102,7 @@ class AdaptiveCupertinoAction {
       data['type'] = 'icon';
       data['iconCode'] = icon!.codePoint;
       data['iconFamily'] = icon!.fontFamily;
+      data['iconPackage'] = icon!.fontPackage;
     } else if (label != null) {
       data['type'] = 'text';
       data['label'] = label;

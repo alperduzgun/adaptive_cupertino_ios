@@ -6,9 +6,11 @@ import os.log
 @available(iOS 15.0, *)
 class AdaptiveCupertinoToolbarFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
+    private var registrar: FlutterPluginRegistrar
 
-    init(messenger: FlutterBinaryMessenger) {
+    init(messenger: FlutterBinaryMessenger, registrar: FlutterPluginRegistrar) {
         self.messenger = messenger
+        self.registrar = registrar
         super.init()
     }
 
@@ -21,7 +23,8 @@ class AdaptiveCupertinoToolbarFactory: NSObject, FlutterPlatformViewFactory {
             frame: frame,
             viewIdentifier: viewId,
             arguments: args,
-            messenger: messenger
+            messenger: messenger,
+            registrar: registrar
         )
     }
 
@@ -39,6 +42,8 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
     private var toolbar: UIToolbar!
     private var navigationItem: UINavigationItem!
     private var messenger: FlutterBinaryMessenger
+    private let registrar: FlutterPluginRegistrar
+    private let fontLoader: FlutterFontLoader
     private let channel: FlutterMethodChannel
     private let isBottom: Bool
     private let topPadding: CGFloat
@@ -48,10 +53,13 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         frame: CGRect,
         viewIdentifier viewId: Int64,
         arguments args: Any?,
-        messenger: FlutterBinaryMessenger
+        messenger: FlutterBinaryMessenger,
+        registrar: FlutterPluginRegistrar
     ) {
         self._view = UIView(frame: frame)
         self.messenger = messenger
+        self.registrar = registrar
+        self.fontLoader = FlutterFontLoader(registrar: registrar)
         self.channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios/toolbar_\(viewId)",
             binaryMessenger: messenger
@@ -226,15 +234,53 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         position: ButtonPosition,
         index: Int
     ) -> UIBarButtonItem? {
-        if let _ = data["systemIcon"] as? String {
-             // System Icon logic...
-        } else if let _ = data["iconCode"] as? Int {
-             // Custom Icon logic...
+        if let type = data["type"] as? String, type == "spacer" {
+            return UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        }
+        
+        if let systemIconName = data["systemIcon"] as? String {
+             let image = UIImage(systemName: systemIconName)
+             let button = UIBarButtonItem(
+                 image: image,
+                 style: .plain,
+                 target: self,
+                 action: position == .leading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
+             )
+             button.tag = index
+             if let colorVal = data["color"] as? Int64 {
+                 button.tintColor = UIColor(argb: colorVal)
+             }
+             return button
+        } else if let iconCode = data["iconCode"] as? Int {
+             let iconString = String(UnicodeScalar(iconCode)!)
+             let button = UIBarButtonItem(
+                 title: iconString,
+                 style: .plain,
+                 target: self,
+                 action: position == .leading ? #selector(leadingTapped) : #selector(trailingTapped(_:))
+             )
+             
+             if let fontFamily = data["iconFamily"] as? String {
+                 let iconPackage = data["iconPackage"] as? String
+                 if let font = fontLoader.loadFont(name: fontFamily, size: 24, package: iconPackage) {
+                     let attributes: [NSAttributedString.Key: Any] = [.font: font]
+                     button.setTitleTextAttributes(attributes, for: .normal)
+                     button.setTitleTextAttributes(attributes, for: .highlighted)
+                 }
+             }
+             
+             if let colorVal = data["color"] as? Int64 {
+                 button.tintColor = UIColor(argb: colorVal)
+             }
+             
+             button.tag = index
+             return button
         } else if let _ = data["label"] as? String {
              return createTextButton(from: data, position: position, index: index)
         }
         return nil
     }
+
 
     private func createTextButton(
         from data: [String: Any],

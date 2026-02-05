@@ -60,6 +60,11 @@ class IOSVersionDetector {
         return supports
     }
 
+    /// Alias for supportsLiquidGlass to match plugin naming
+    static func supportsGlassEffect() -> Bool {
+        return supportsLiquidGlass()
+    }
+
     /// Check if device is running iOS 18 or newer
     static func isIOS18OrNewer() -> Bool {
         if #available(iOS 26.0, *) {
@@ -108,7 +113,7 @@ class IOSVersionDetector {
             "majorVersion": osVersion.majorVersion,
             "minorVersion": osVersion.minorVersion,
             "patchVersion": osVersion.patchVersion,
-            "supportsLiquidGlass": supportsLiquidGlass(),
+            "supportsGlassEffect": supportsGlassEffect(),
             "supportsModernToolbar": supportsModernToolbar(),
             "fullVersion": "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
         ]

@@ -72,9 +72,11 @@ class TabBarContainerView: UIView {
 @available(iOS 15.0, *)
 class AdaptiveCupertinoTabBarFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
+    private var registrar: FlutterPluginRegistrar
 
-    init(messenger: FlutterBinaryMessenger) {
+    init(messenger: FlutterBinaryMessenger, registrar: FlutterPluginRegistrar) {
         self.messenger = messenger
+        self.registrar = registrar
         super.init()
     }
 
@@ -83,16 +85,12 @@ class AdaptiveCupertinoTabBarFactory: NSObject, FlutterPlatformViewFactory {
         viewIdentifier viewId: Int64,
         arguments args: Any?
     ) -> FlutterPlatformView {
-        print("🔍 [TabBar-Factory] Creating platform view")
-        print("🔍 [TabBar-Factory] View ID: \(viewId)")
-        print("🔍 [TabBar-Factory] Frame: \(frame)")
-        print("🔍 [TabBar-Factory] Arguments: \(String(describing: args))")
-
         return AdaptiveCupertinoTabBarPlatformView(
             frame: frame,
             viewIdentifier: viewId,
             arguments: args,
-            binaryMessenger: messenger
+            binaryMessenger: messenger,
+            registrar: registrar
         )
     }
 
@@ -115,6 +113,8 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
     private var tabBar: UITabBar!
     private var shadowView: UIView!
     private var messenger: FlutterBinaryMessenger
+    private let registrar: FlutterPluginRegistrar
+    private let fontLoader: FlutterFontLoader
     private var selectedIndex: Int = 0
     private let channel: FlutterMethodChannel
 
@@ -132,10 +132,13 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
         frame: CGRect,
         viewIdentifier viewId: Int64,
         arguments args: Any?,
-        binaryMessenger messenger: FlutterBinaryMessenger
+        binaryMessenger messenger: FlutterBinaryMessenger,
+        registrar: FlutterPluginRegistrar
     ) {
         print("🔍 [TabBar-View] Init started")
         self.messenger = messenger
+        self.registrar = registrar
+        self.fontLoader = FlutterFontLoader(registrar: registrar)
         
         // Use custom container that triggers layout after window attachment
         let containerView = TabBarContainerView(frame: frame)
@@ -425,29 +428,21 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
         codeKey: String,
         familyKey: String
     ) -> UIImage? {
-        // 1. Try SF Symbols first (if iconName provided)
+        // 1. Try SF Symbols first
         if let iconName = data[nameKey] as? String,
            let image = UIImage(systemName: iconName) {
             return image
         }
 
-        // 2. Fallback to Unicode with proper font mapping (Matches AppBar behavior)
+        // 2. Fallback to Unicode via shared loader
         if let iconCode = data[codeKey] as? Int {
-            let iconString = String(format: "%C", iconCode)
+            let iconString = String(UnicodeScalar(iconCode)!)
             let family = data[familyKey] as? String ?? ""
-            let fontSize: CGFloat = 24.0
-            var font: UIFont?
-
-            if family.contains("CupertinoIcons") {
-                font = UIFont(name: "CupertinoIcons", size: fontSize)
-            } else if family.contains("MaterialIcons") {
-                font = UIFont(name: "MaterialIcons-Regular", size: fontSize)
-            }
-
-            if let iconFont = font {
-                // Render text to image for TabBarItem compatibility
+            let iconPackage = data["iconPackage"] as? String
+            
+            if let font = fontLoader.loadFont(name: family, size: 24, package: iconPackage) {
                 let attributes: [NSAttributedString.Key: Any] = [
-                    .font: iconFont,
+                    .font: font,
                     .foregroundColor: UIColor.label
                 ]
                 let size = (iconString as NSString).size(withAttributes: attributes)
@@ -456,7 +451,6 @@ class AdaptiveCupertinoTabBarPlatformView: NSObject, FlutterPlatformView {
                 let image = UIGraphicsGetImageFromCurrentImageContext()
                 UIGraphicsEndImageContext()
                 
-                // Return as alwaysTemplate to allow TabBar tinting to work
                 return image?.withRenderingMode(.alwaysTemplate)
             }
         }

@@ -49,7 +49,7 @@ class AdaptiveGlassHelper {
             
             // LENSING (Real-time light bending)
             if glassEffect.responds(to: NSSelectorFromString("setRefraction:")) {
-                glassEffect.setValue(2.5, forKey: "refraction")
+               glassEffect.setValue(2.5, forKey: "refraction")
             }
             
             if let effect = glassEffect as? UIVisualEffect {
@@ -57,6 +57,7 @@ class AdaptiveGlassHelper {
                 let glassContainer = GlassContainerView()
                 glassContainer.isInteractive = isInteractive
                 glassContainer.backgroundColor = .clear
+                glassContainer.isOpaque = false // OPTIMIZATION: Tell engine we are transparent
                 glassContainer.translatesAutoresizingMaskIntoConstraints = false
                 
                 // IMPORTANT: If not interactive, disable ALL interaction on subviews
@@ -110,8 +111,9 @@ class AdaptiveGlassHelper {
         let blurEffect = UIBlurEffect(style: style)
         let blurView = UIVisualEffectView(effect: blurEffect)
         
-        blurView.layer.borderWidth = 0.5
-        blurView.layer.borderColor = UIColor.white.withAlphaComponent(borderAlpha).cgColor
+        // REMOVED: User feedback indicated this border looks like a "gray frame" artifact.
+        // blurView.layer.borderWidth = 0.5
+        // blurView.layer.borderColor = UIColor.white.withAlphaComponent(borderAlpha).cgColor
 
         if tintAlpha > 0 {
             let tint = UIView()

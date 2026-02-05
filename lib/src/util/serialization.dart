@@ -38,78 +38,69 @@ class WidgetSerializer {
     return null;
   }
 
+  /// The internal mapping of CupertinoIcons code points to SF Symbol names.
+  ///
+  /// This mapping ensures automatic resolution of standard Flutter CupertinoIcons
+  /// to their corresponding native SF Symbols, enabling native animations and rendering.
+  static const Map<int, String> _cupertinoToSf = {
+    // Common Icons
+    0xf44c: 'magnifyingglass', // search (62540)
+    0xf2c7: 'magnifyingglass', // search (legacy)
+    0xf274: 'plus', // add
+    0xf4ca: 'square.and.arrow.up', // share
+    0xf44e: 'info.circle', // info
+    0xf43c: 'gear', // settings
+    0xf43d: 'gear.fill', // settings_solid
+    0xf44f: 'info.circle', // info_circle
+    0xf450: 'info.circle.fill', // info_circle_fill
+
+    // Shapes
+    0xf2aa: 'circle',
+    0xf2ab: 'circle.fill',
+    0xf442: 'heart',
+    0xf443: 'heart.fill',
+
+    0xf41c: 'person.crop.rectangle', // person_crop_rectangle
+    0xf41d: 'person.crop.rectangle.fill', // person_crop_rectangle_fill
+
+    // Tab Bar & Navigation
+    63492: 'square.grid.2x2', // square_grid_2x2 (0xf804)
+    63493: 'square.grid.2x2.fill', // square_grid_2x2_fill (0xf805)
+    63623: 'rectangle.split.2x1', // uiwindow_split_2x1 (0xf887)
+    63718: 'square.stack.3d.up', // layers_alt (0xf8e6)
+    63719: 'square.stack.3d.up.fill', // layers_alt_fill (0xf8e7)
+    62512: 'flask', // lab_flask (0xf430)
+    62513: 'flask.fill', // lab_flask_solid (0xf431)
+
+    // Navigation
+    0xf2d6: 'chevron.right',
+    0xf2d5: 'chevron.left',
+
+    // Sparkles & Effects
+    63464: 'sparkles', // sparkles (0xf7e8)
+
+    // Notifications
+    0xf3eb: 'bell',
+    0xf3ec: 'bell.fill',
+  };
+
   /// Returns the SF Symbol name for a given IconData, if mapped.
   ///
   /// This serves as the consistent global mapping source.
   static String? getSfSymbolName(IconData? icon) {
     if (icon == null) return null;
 
-    // Automatic SF Symbol Mapping (Common CupertinoIcons)
-    if (icon == CupertinoIcons.search || icon == Icons.search) {
-      return 'magnifyingglass';
-    } else if (icon == CupertinoIcons.add || icon == Icons.add) {
-      return 'plus';
-    } else if (icon == CupertinoIcons.share || icon == Icons.share) {
-      return 'square.and.arrow.up';
-    } else if (icon == CupertinoIcons.info_circle || icon == Icons.info) {
-      return 'info.circle';
-    } else if (icon == CupertinoIcons.gear ||
-        icon == CupertinoIcons.settings ||
-        icon == Icons.settings) {
-      return 'gear';
-    } else if (icon == CupertinoIcons.gear_solid) {
-      return 'gear.fill';
-    } else if (icon == CupertinoIcons.layers) {
-      return 'layers';
-    } else if (icon == CupertinoIcons.layers_fill) {
-      return 'layers.fill';
-    } else if (icon == CupertinoIcons.circle) {
-      return 'circle';
-    } else if (icon == CupertinoIcons.circle_fill) {
-      return 'circle.fill';
-    } else if (icon == CupertinoIcons.heart) {
-      return 'heart';
-    } else if (icon == CupertinoIcons.heart_fill) {
-      return 'heart.fill';
-    } else if (icon == CupertinoIcons.star) {
-      return 'star';
-    } else if (icon == CupertinoIcons.star_fill) {
-      return 'star.fill';
-    } else if (icon == CupertinoIcons.house) {
-      return 'house';
-    } else if (icon == CupertinoIcons.house_fill) {
-      return 'house.fill';
-    } else if (icon == CupertinoIcons.square_grid_2x2) {
-      return 'square.grid.2x2';
-    } else if (icon == CupertinoIcons.square_grid_2x2_fill) {
-      return 'square.grid.2x2.fill';
-    } else if (icon == CupertinoIcons.rectangle_stack) {
-      return 'rectangle.stack';
-    } else if (icon == CupertinoIcons.rectangle_stack_fill) {
-      return 'rectangle.stack.fill';
-    } else if (icon == CupertinoIcons.bolt_fill) {
-      return 'bolt.fill';
-    } else if (icon == CupertinoIcons.flame_fill) {
-      return 'flame.fill';
-    } else if (icon == CupertinoIcons.doc_text) {
-      return 'doc.text';
-    } else if (icon == CupertinoIcons.doc_text_fill) {
-      return 'doc.text.fill';
-    } else if (icon == CupertinoIcons.person_2) {
-      return 'person.2';
-    } else if (icon == CupertinoIcons.person_2_fill) {
-      return 'person.2.fill';
-    } else if (icon == CupertinoIcons.sparkles) {
-      return 'sparkles';
-    } else if (icon == CupertinoIcons.person_circle) {
-      return 'person.circle';
-    } else if (icon == CupertinoIcons.person_circle_fill) {
-      return 'person.circle.fill';
-    } else if (icon == CupertinoIcons.bell) {
-      return 'bell';
-    } else if (icon == CupertinoIcons.bell_fill) {
-      return 'bell.fill';
+    // 1. Check Code Point Mapping (Fast & Robust)
+    if (_cupertinoToSf.containsKey(icon.codePoint)) {
+      return _cupertinoToSf[icon.codePoint];
     }
+
+    // 2. Legacy/Fallback Checks (for icons from material or other families)
+    if (icon.codePoint == Icons.search.codePoint) return 'magnifyingglass';
+    if (icon.codePoint == Icons.add.codePoint) return 'plus';
+    if (icon.codePoint == Icons.share.codePoint) return 'square.and.arrow.up';
+    if (icon.codePoint == Icons.info.codePoint) return 'info.circle';
+    if (icon.codePoint == Icons.settings.codePoint) return 'gear';
 
     return null;
   }
@@ -128,6 +119,7 @@ class WidgetSerializer {
         'type': 'icon',
         'iconCode': widget.icon?.codePoint,
         'iconFamily': widget.icon?.fontFamily,
+        'iconPackage': widget.icon?.fontPackage,
       };
 
       // Automatic SF Symbol Mapping
@@ -146,6 +138,14 @@ class WidgetSerializer {
     // Handle CupertinoButton
     if (widget is CupertinoButton) {
       return serialize(widget.child);
+    }
+
+    // Handle Spacer
+    if (widget is Spacer) {
+      if (kDebugMode) {
+        debugPrint('   ✅ Spacer found');
+      }
+      return {'type': 'spacer'};
     }
 
     // Handle single-child wrappers

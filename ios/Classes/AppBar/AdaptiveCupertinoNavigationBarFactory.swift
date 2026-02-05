@@ -8,9 +8,11 @@ import os.log
 @available(iOS 15.0, *)
 class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
+    private var registrar: FlutterPluginRegistrar
 
-    init(messenger: FlutterBinaryMessenger) {
+    init(messenger: FlutterBinaryMessenger, registrar: FlutterPluginRegistrar) {
         self.messenger = messenger
+        self.registrar = registrar
         super.init()
     }
 
@@ -23,7 +25,8 @@ class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactor
             frame: frame,
             viewIdentifier: viewId,
             arguments: args,
-            binaryMessenger: messenger
+            binaryMessenger: messenger,
+            registrar: registrar
         )
     }
 
@@ -39,7 +42,7 @@ class AdaptiveCupertinoNavigationBarFactory: NSObject, FlutterPlatformViewFactor
 /// - Liquid Glass fallback for iOS 18-25
 /// - Standard fallback for older versions
 /// Custom Container View to intercept layout changes
-class AdaptiveContainerView: UIView {
+class AdaptiveNavBarContainerView: UIView {
     var onLayout: (() -> Void)?
     weak var pillBoundView: UIView? // Reference to the glass capsule
     
@@ -78,10 +81,12 @@ class AdaptiveContainerView: UIView {
 /// - Standard fallback for older versions
 @available(iOS 15.0, *)
 class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView, UINavigationBarDelegate, UISearchResultsUpdating, UISearchBarDelegate {
-    private var _view: AdaptiveContainerView
+    private var _view: AdaptiveNavBarContainerView
     private var navigationBar: UINavigationBar!
     private var navigationItem: UINavigationItem!
     private var messenger: FlutterBinaryMessenger
+    private let registrar: FlutterPluginRegistrar
+    private let fontLoader: FlutterFontLoader
     private let channel: FlutterMethodChannel
     private var topPadding: CGFloat = 0
     private var searchController: UISearchController?
@@ -99,15 +104,19 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
     private var glassTrailingConstraint: NSLayoutConstraint?
     private var glassTopConstraint: NSLayoutConstraint?
     private var glassBottomConstraint: NSLayoutConstraint?
+    private var glassBottomPadding: CGFloat = 0
 
     init(
         frame: CGRect,
         viewIdentifier viewId: Int64,
         arguments args: Any?,
-        binaryMessenger messenger: FlutterBinaryMessenger
+        binaryMessenger messenger: FlutterBinaryMessenger,
+        registrar: FlutterPluginRegistrar
     ) {
         self.messenger = messenger
-        self._view = AdaptiveContainerView(frame: frame)
+        self.registrar = registrar
+        self.fontLoader = FlutterFontLoader(registrar: registrar)
+        self._view = AdaptiveNavBarContainerView(frame: frame)
         self.channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios/app_bar_\(viewId)",
             binaryMessenger: messenger
@@ -491,9 +500,9 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
                 return button
             }
 
-            // 2. Fallback to Unicode with proper font mapping
+            // 2. Fallback to Unicode via shared loader
             if let iconCode = data["iconCode"] as? Int {
-                let iconString = String(format: "%C", iconCode)
+                let iconString = String(UnicodeScalar(iconCode)!)
                 var style: UIBarButtonItem.Style = .plain
                 if #available(iOS 26.0, *), isIOS26 {
                     style = .prominent
@@ -512,19 +521,12 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
                 
                 button.tag = index
 
-                // Apply correct icon font (CupertinoIcons or MaterialIcons)
+                // Resolve icon font using shared loader
                 let family = data["iconFamily"] as? String ?? ""
-                let fontSize: CGFloat = 24.0
-                var font: UIFont?
-
-                if family.contains("CupertinoIcons") {
-                    font = UIFont(name: "CupertinoIcons", size: fontSize)
-                } else if family.contains("MaterialIcons") {
-                    font = UIFont(name: "MaterialIcons-Regular", size: fontSize)
-                }
-
-                if let iconFont = font {
-                    let attributes: [NSAttributedString.Key: Any] = [.font: iconFont]
+                let iconPackage = data["iconPackage"] as? String
+                
+                if let font = fontLoader.loadFont(name: family, size: 24, package: iconPackage) {
+                    let attributes: [NSAttributedString.Key: Any] = [.font: font]
                     button.setTitleTextAttributes(attributes, for: .normal)
                     button.setTitleTextAttributes(attributes, for: .highlighted)
                 }

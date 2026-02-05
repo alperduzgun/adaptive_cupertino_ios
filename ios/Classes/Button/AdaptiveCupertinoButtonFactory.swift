@@ -9,9 +9,11 @@ import os.log
 @available(iOS 15.0, *)
 class AdaptiveCupertinoButtonFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
+    private var registrar: FlutterPluginRegistrar
 
-    init(messenger: FlutterBinaryMessenger) {
+    init(messenger: FlutterBinaryMessenger, registrar: FlutterPluginRegistrar) {
         self.messenger = messenger
+        self.registrar = registrar
         super.init()
     }
 
@@ -24,7 +26,8 @@ class AdaptiveCupertinoButtonFactory: NSObject, FlutterPlatformViewFactory {
             frame: frame,
             viewIdentifier: viewId,
             arguments: args,
-            binaryMessenger: messenger
+            binaryMessenger: messenger,
+            registrar: registrar
         )
     }
 
@@ -64,6 +67,8 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
     private var _view: UIView
     private var button: UIButton!
     private var messenger: FlutterBinaryMessenger
+    private let registrar: FlutterPluginRegistrar
+    private let fontLoader: FlutterFontLoader
     private let channel: FlutterMethodChannel
     private static let logger = OSLog(subsystem: "com.adaptive_cupertino_ios", category: "ButtonFactory")
     
@@ -74,9 +79,12 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         frame: CGRect,
         viewIdentifier viewId: Int64,
         arguments args: Any?,
-        binaryMessenger messenger: FlutterBinaryMessenger
+        binaryMessenger messenger: FlutterBinaryMessenger,
+        registrar: FlutterPluginRegistrar
     ) {
         self.messenger = messenger
+        self.registrar = registrar
+        self.fontLoader = FlutterFontLoader(registrar: registrar)
         self._view = UIView(frame: frame)
         self.channel = FlutterMethodChannel(
             name: "adaptive_cupertino_ios/glass_button_\(viewId)",
@@ -106,11 +114,16 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         let styleString = params["style"] as? String ?? "glass"
         let enabled = params["enabled"] as? Bool ?? true
         let tintColor = params["tintColor"] as? String
-        let iconName = params["icon"] as? String
+        let iconName = params["iconName"] as? String
+        let iconCode = params["iconCode"] as? Int
+        let iconFamily = params["iconFamily"] as? String
+        let iconPackage = params["iconPackage"] as? String
         let iconPlacementString = params["iconPlacement"] as? String ?? "leading"
 
         let style = AdaptiveButtonStyle(rawValue: styleString) ?? .glass
         let iconPlacement = IconPlacement(rawValue: iconPlacementString) ?? .leading
+        
+        let menuActions = params["menuActions"] as? [[String: Any]]
 
         // Create button based on availability (iOS 18+)
         if #available(iOS 15.0, *) {
@@ -121,15 +134,22 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
                  style: style,
                  tintColor: tintColor,
                  iconName: iconName,
+                 iconCode: iconCode,
+                 iconFamily: iconFamily,
+                 iconPackage: iconPackage,
                  iconPlacement: iconPlacement,
-                 glassEffectID: params["glassEffectID"] as? String
+                 glassEffectID: params["glassEffectID"] as? String,
+                 menuActions: menuActions
              )
         } else {
              // Fallback for older iOS
              button = createFallbackButton(
                  title: title,
                  enabled: enabled,
-                 iconName: iconName
+                 iconName: iconName,
+                 iconCode: iconCode,
+                 iconFamily: iconFamily,
+                 iconPackage: iconPackage
              )
         }
         }
@@ -156,8 +176,12 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         style: AdaptiveButtonStyle,
         tintColor: String?,
         iconName: String?,
+        iconCode: Int?,
+        iconFamily: String?,
+        iconPackage: String?,
         iconPlacement: IconPlacement,
-        glassEffectID: String? = nil
+        glassEffectID: String? = nil,
+        menuActions: [[String: Any]]? = nil
     ) -> UIButton {
         var config: UIButton.Configuration = .plain() // Standard base for 15+
 
@@ -214,10 +238,27 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         config.title = title
         config.cornerStyle = .large
 
-        // Icon configuration (SF Symbols)
+        // Icon configuration
         if let icon = iconName {
             config.image = UIImage(systemName: icon)
+        } else if let code = iconCode, let family = iconFamily {
+            // Render Flutter Icon as Image
+            if let font = fontLoader.loadFont(name: family, size: 24, package: iconPackage) {
+                let iconString = String(UnicodeScalar(code)!)
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: config.baseForegroundColor ?? .label
+                ]
+                let size = (iconString as NSString).size(withAttributes: attributes)
+                UIGraphicsBeginImageContextWithOptions(size, false, 0)
+                (iconString as NSString).draw(at: .zero, withAttributes: attributes)
+                let image = UIGraphicsGetImageFromCurrentImageContext()
+                UIGraphicsEndImageContext()
+                config.image = image?.withRenderingMode(.alwaysTemplate)
+            }
+        }
 
+        if config.image != nil {
             // Icon placement
             switch iconPlacement {
             case .leading:
@@ -243,6 +284,29 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         )
 
         let button = UIButton(configuration: config)
+
+        // Native Menu (iOS 14+)
+        if let actions = menuActions, !actions.isEmpty {
+            var menuElements: [UIMenuElement] = []
+            
+            for (index, actionMap) in actions.enumerated() {
+                let title = actionMap["label"] as? String ?? "Action"
+                let isDestructive = actionMap["isDestructive"] as? Bool ?? false
+                
+                var attributes: UIMenuElement.Attributes = []
+                if isDestructive {
+                    attributes.insert(.destructive)
+                }
+                
+                let action = UIAction(title: title, attributes: attributes) { _ in
+                    self.channel.invokeMethod("onMenuAction", arguments: ["index": index])
+                }
+                menuElements.append(action)
+            }
+            
+            button.menu = UIMenu(title: "", children: menuElements)
+            button.showsMenuAsPrimaryAction = true
+        }
         
         // Apply Glass Effect ID and Variants
         if #available(iOS 26.0, *) {
@@ -299,7 +363,10 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
     private func createFallbackButton(
         title: String,
         enabled: Bool,
-        iconName: String?
+        iconName: String?,
+        iconCode: Int?,
+        iconFamily: String?,
+        iconPackage: String?
     ) -> UIButton {
         var config = UIButton.Configuration.filled()
         config.title = title
@@ -310,10 +377,27 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
         var titleContainer = AttributeContainer()
         titleContainer.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
         config.attributedTitle = AttributedString(title, attributes: titleContainer)
-
+        
         // Icon configuration
         if let icon = iconName {
             config.image = UIImage(systemName: icon)
+        } else if let code = iconCode, let family = iconFamily {
+             if let font = fontLoader.loadFont(name: family, size: 20, package: iconPackage) {
+                let iconString = String(UnicodeScalar(code)!)
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: UIColor.white
+                ]
+                let size = (iconString as NSString).size(withAttributes: attributes)
+                UIGraphicsBeginImageContextWithOptions(size, false, 0)
+                (iconString as NSString).draw(at: .zero, withAttributes: attributes)
+                let image = UIGraphicsGetImageFromCurrentImageContext()
+                UIGraphicsEndImageContext()
+                config.image = image?.withRenderingMode(.alwaysTemplate)
+            }
+        }
+        
+        if config.image != nil {
             config.imagePadding = 8
             config.imagePlacement = .leading
         }
@@ -327,7 +411,7 @@ class AdaptiveCupertinoButtonPlatformView: NSObject, FlutterPlatformView {
     }
 
     private func setupFallbackButton() {
-        button = createFallbackButton(title: "Button", enabled: true, iconName: nil)
+        button = createFallbackButton(title: "Button", enabled: true, iconName: nil, iconCode: nil, iconFamily: nil, iconPackage: nil)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(buttonTapped), for: .touchUpInside)
 

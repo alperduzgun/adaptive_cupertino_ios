@@ -54,7 +54,7 @@ class IOSVersion {
   /// Get last error if any
   Object? get lastError => _lastError;
 
-  /// Check if device supports iOS 18+ native UI (Liquid Glass).
+  /// Check if device supports iOS 18+ native UI (Glass Effect).
   ///
   /// Returns `true` for iOS 18+, `false` otherwise.
   /// Caches the result for performance.

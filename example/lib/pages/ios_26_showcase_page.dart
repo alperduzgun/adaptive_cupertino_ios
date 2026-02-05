@@ -2,15 +2,17 @@ import 'dart:math' as math;
 
 import 'package:adaptive_cupertino_ios/adaptive_cupertino_ios.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Divider;
 
 enum ShowcaseFeature {
   none,
   lensing,
   variants,
-  morphing,
   controls,
   sheets,
-  menus
+  menus,
+  forms,
+  lists
 }
 
 class IOS26ShowcasePage extends StatefulWidget {
@@ -40,8 +42,6 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
 
   @override
   Widget build(BuildContext context) {
-    // We REMOVE the AdaptiveScaffold here because main.dart already provides one.
-    // This resolves the AppBar conflict.
     return Stack(
       children: [
         Positioned.fill(
@@ -54,10 +54,17 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
     );
   }
 
+  Widget _buildAnimatedBackground() {
+    return AnimatedBuilder(
+      animation: _bgController,
+      builder: (context, child) =>
+          CustomPaint(painter: _BackgroundPainter(_bgController.value)),
+    );
+  }
+
   Widget _buildMenu() {
     return CustomScrollView(
       slivers: [
-        // Match the HomePage large title height
         const SliverToBoxAdapter(child: SizedBox(height: 140)),
         SliverPadding(
           padding: const EdgeInsets.all(20),
@@ -75,13 +82,6 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
                 'Explore .glass, .prominent and .clear native button configs.',
                 CupertinoIcons.layers,
                 ShowcaseFeature.variants,
-              ),
-              const SizedBox(height: 16),
-              _buildMenuCard(
-                'Liquid Morphing',
-                'Fluid transformations between interactive control states.',
-                CupertinoIcons.infinite,
-                ShowcaseFeature.morphing,
               ),
               const SizedBox(height: 16),
               _buildMenuCard(
@@ -104,6 +104,20 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
                 CupertinoIcons.conversation_bubble,
                 ShowcaseFeature.menus,
               ),
+              const SizedBox(height: 16),
+              _buildMenuCard(
+                'Forms & Inputs',
+                'Adaptive TextFields, Checkboxes, and Radios with native Glass support.',
+                CupertinoIcons.textformat_abc_dottedunderline,
+                ShowcaseFeature.forms,
+              ),
+              const SizedBox(height: 16),
+              _buildMenuCard(
+                'Lists & Layouts',
+                'High-fidelity Bento grids, Cards, and Floating Action Buttons.',
+                CupertinoIcons.square_grid_2x2,
+                ShowcaseFeature.lists,
+              ),
             ]),
           ),
         ),
@@ -115,7 +129,6 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
       String title, String subtitle, IconData icon, ShowcaseFeature feature) {
     return GestureDetector(
       onTap: () {
-        // Navigate to dedicated page for true iOS back button behavior
         Navigator.of(context).push(
           CupertinoPageRoute(
             builder: (context) => _ShowcaseDetailPage(feature: feature),
@@ -163,15 +176,6 @@ class _IOS26ShowcasePageState extends State<IOS26ShowcasePage>
       ),
     );
   }
-
-  Widget _buildAnimatedBackground() {
-    return AnimatedBuilder(
-      animation: _bgController,
-      builder: (context, child) {
-        return CustomPaint(painter: _BackgroundPainter(_bgController.value));
-      },
-    );
-  }
 }
 
 class _ShowcaseDetailPage extends StatefulWidget {
@@ -185,17 +189,16 @@ class _ShowcaseDetailPage extends StatefulWidget {
 class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _bgController;
-  bool _isMorphed = false;
   bool _showBackground = true;
-  bool _switchValue = true;
-  double _sliderValue = 0.7;
-  int _segmentedValue = 1;
+  bool _checkboxValue = false;
+  int _radioValue = 0;
+  final TextEditingController _textController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _bgController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 60))
+        AnimationController(vsync: this, duration: const Duration(seconds: 40))
           ..repeat();
   }
 
@@ -211,7 +214,6 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
       extendBodyBehindAppBar: true,
       appBar: AdaptiveCupertinoAppBar(
         title: Text(_getFeatureTitle(widget.feature)),
-        // The back button is handled automatically by Navigator + AdaptiveScaffold
       ),
       body: Stack(
         children: [
@@ -237,15 +239,17 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
         return 'Lensing';
       case ShowcaseFeature.variants:
         return 'Button Styles';
-      case ShowcaseFeature.morphing:
-        return 'Morphing';
       case ShowcaseFeature.controls:
         return 'Controls';
       case ShowcaseFeature.sheets:
         return 'Sheets';
       case ShowcaseFeature.menus:
         return 'Menus & Dialogs';
-      default:
+      case ShowcaseFeature.forms:
+        return 'Forms & Inputs';
+      case ShowcaseFeature.lists:
+        return 'Lists & Layouts';
+      case ShowcaseFeature.none:
         return 'Detail';
     }
   }
@@ -256,14 +260,14 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
         return _buildLensingDemo();
       case ShowcaseFeature.variants:
         return _buildVariantsDemo();
-      case ShowcaseFeature.morphing:
-        return _buildMorphingDemo();
-      case ShowcaseFeature.controls:
-        return _buildControlsDemo();
       case ShowcaseFeature.sheets:
         return _buildSheetsDemo();
       case ShowcaseFeature.menus:
         return _buildMenusDemo();
+      case ShowcaseFeature.forms:
+        return _buildFormsDemo();
+      case ShowcaseFeature.lists:
+        return _buildListsDemo();
       default:
         return const Center(child: Text('Coming Soon'));
     }
@@ -306,120 +310,150 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
     return CustomScrollView(
       slivers: [
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: _buildVariantsSection(),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              _buildInfoSection(
+                'Aesthetical Variants',
+                'Each variant provides a unique material response. Identity variant tints the glass with your brand color while maintaining 100% transparency.',
+              ),
+              const SizedBox(height: 32),
+              _buildVariantCard('Glass Variant', 'Default high-fidelity blur',
+                  AdaptiveButtonStyle.glass),
+              const SizedBox(height: 16),
+              _buildVariantCard(
+                  'Identity Variant',
+                  'Brand tinted refraction',
+                  AdaptiveButtonStyle.glassIdentity,
+                  CupertinoColors.activeBlue),
+              const SizedBox(height: 16),
+              _buildVariantCard('Clear Variant', 'Minimalist transparency',
+                  AdaptiveButtonStyle.glassClear),
+            ]),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildVariantsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader('Native Button Configurations'),
-        const SizedBox(height: 12),
-        const Text(
-          'In iOS 26, UIButton.Configuration adds high-fidelity glass variants. Each style represents a different material density and lensing behavior.',
-          style: TextStyle(fontSize: 13, color: CupertinoColors.secondaryLabel),
-        ),
-        const SizedBox(height: 24),
-        _buildButtonVariant(
-          'Glass (.glass)',
-          AdaptiveButtonStyle.glass,
-          'The standard adaptive material. Balanced refraction and milkiness.',
-        ),
-        const SizedBox(height: 20),
-        _buildButtonVariant(
-          'Prominent (.prominentGlass)',
-          AdaptiveButtonStyle.glassProminent,
-          'Higher material density. Designed for primary actions.',
-        ),
-        const SizedBox(height: 20),
-        _buildButtonVariant(
-          'Clear (.clearGlass)',
-          AdaptiveButtonStyle.glassClear,
-          'Zero milkiness. High transparency. Best for visually rich backgrounds.',
-        ),
-        const SizedBox(height: 20),
-        _buildButtonVariant(
-          'Prominent Clear (.prominentClearGlass)',
-          AdaptiveButtonStyle.glassIdentity, // Mapped to this on native side
-          'Maximum lensing (distortion) without the white tint wash.',
-        ),
-        const SizedBox(height: 20),
-        _buildButtonVariant(
-          'Tinted Glass',
-          AdaptiveButtonStyle.glassTinted,
-          'A subtle 15% color wash infused into the glass material.',
-          color: CupertinoColors.systemPurple,
-        ),
-      ],
+  Widget _buildSheetsDemo() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildInfoSection('Floating Sheets', 'Native iOS 26 detached style.'),
+          const SizedBox(height: 32),
+          AdaptiveButton(
+            onPressed: () {
+              showAdaptiveCupertinoSheet(
+                context,
+                contentId: 'showcase-sheet',
+                isFloating: true,
+              );
+            },
+            child: const Text('Show Native Sheet'),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildButtonVariant(
-      String name, AdaptiveButtonStyle style, String desc,
-      {Color? color}) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: CupertinoColors.white.withOpacity(0.05)),
-      ),
+  Widget _buildMenusDemo() {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(name,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600)),
+          _buildInfoSection('Context Menus', 'Long-press to trigger.'),
+          const SizedBox(height: 32),
+          AdaptiveContextMenu(
+            actions: [
+              AdaptiveContextMenuItem(
+                child: const Text('Edit'),
+                onPressed: () {},
               ),
-              const SizedBox(width: 8),
+              AdaptiveContextMenuItem(
+                child: const Text('Share'),
+                onPressed: () {},
+              ),
+              AdaptiveContextMenuItem(
+                child: const Text('Delete'),
+                onPressed: () {},
+              ),
+            ],
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                color: CupertinoColors.activeBlue.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                  child: Text('Long Press Me',
+                      style: TextStyle(color: CupertinoColors.activeBlue))),
+            ),
+          ),
+          const SizedBox(height: 48),
+          _buildInfoSection('Badges & Tooltips', 'Glass-textured info layers.'),
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AdaptiveTooltip(
+                message: 'This is a premium glass tooltip',
+                useGlass: true,
+                child: AdaptiveBadge(
+                  label: const Text('99+'),
+                  useGlass: true,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey6,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(CupertinoIcons.bell_fill),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 32),
               AdaptiveButton(
-                style: style,
-                color: color,
-                onPressed: () => print('📱 Pressed: $name'),
-                child: const Text('Action'),
+                onPressed: () => showAdaptiveSnackBar(
+                  context,
+                  message: 'Native iOS 26 Top Banner triggered!',
+                  useGlass: true,
+                ),
+                child: const Text('Show Banner'),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(desc,
-              style: const TextStyle(
-                  fontSize: 12, color: CupertinoColors.secondaryLabel)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMorphingDemo() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          const SizedBox(height: 140),
-          _buildInfoSection(
-            'Liquid Transformation',
-            'Experience the gel-like morphing between two UI states. This uses bouncy physics inspired by Solarium design.',
+          const SizedBox(height: 48),
+          _buildInfoSection('Glass Dialogs', 'Consistent material blending.'),
+          const SizedBox(height: 32),
+          AdaptiveButton(
+            onPressed: () {
+              showAdaptiveDialog(
+                context: context,
+                builder: (context) => AdaptiveAlertDialog(
+                  title: const Text('Native iOS 26'),
+                  content: const Text(
+                      'This dialog uses real-time glass refraction.'),
+                  actions: [
+                    AdaptiveDialogAction(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Dismiss'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            child: const Text('Show Glass Dialog'),
           ),
-          const SizedBox(height: 40),
-          _buildMorphDemoUI(),
-          const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  Widget _buildControlsDemo() {
+  Widget _buildFormsDemo() {
     return CustomScrollView(
       slivers: [
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -429,62 +463,89 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
             child: Column(
               children: [
                 _buildInfoSection(
-                  'High-Fidelity Toggles',
-                  'Native iOS 26 Switches now use the AdaptiveGlassView material, providing a subtle refraction when in the OFF state.',
+                  'Bento Forms',
+                  'iOS 26 style grouped sections using real-time glass refraction.',
                 ),
                 const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.systemBackground.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Glass Switch',
-                          style: TextStyle(fontSize: 17)),
-                      AdaptiveSwitch(
-                        value: _switchValue,
-                        onChanged: (v) => setState(() => _switchValue = v),
+                AdaptiveFormSection(
+                  header: 'Account Information',
+                  useGlass: true,
+                  children: [
+                    AdaptiveTextField(
+                      controller: _textController,
+                      placeholder: 'Full Name',
+                      useGlass:
+                          false, // Inside section, we don't need extra glass
+                    ),
+                    const AdaptiveTextField(
+                      placeholder: 'Email Address',
+                      keyboardType: TextInputType.emailAddress,
+                      useGlass: false,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                AdaptiveFormSection(
+                  header: 'Preferences',
+                  footer: 'These settings are applied across all your devices.',
+                  useGlass: true,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Enable Notifications'),
+                          AdaptiveCheckbox(
+                            value: _checkboxValue,
+                            onChanged: (v) =>
+                                setState(() => _checkboxValue = v ?? false),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Priority Mode'),
+                          Row(
+                            children: [
+                              AdaptiveRadio<int>(
+                                value: 0,
+                                groupValue: _radioValue,
+                                onChanged: (v) =>
+                                    setState(() => _radioValue = v ?? 0),
+                              ),
+                              const Text('Low'),
+                              const SizedBox(width: 8),
+                              AdaptiveRadio<int>(
+                                value: 1,
+                                groupValue: _radioValue,
+                                onChanged: (v) =>
+                                    setState(() => _radioValue = v ?? 1),
+                              ),
+                              const Text('High'),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 32),
                 _buildInfoSection(
-                  'Refractive Sliders',
-                  'The slider track has been upgraded to Liquid Glass. Observe how it bends the animated colored blobs passing behind it.',
+                  'Standalone Glass',
+                  'A text field with its own independent glass refraction layer.',
                 ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.systemBackground.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    children: [
-                      AdaptiveSlider(
-                        value: _sliderValue,
-                        onChanged: (v) => setState(() => _sliderValue = v),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 16),
+                const AdaptiveTextField(
+                  placeholder: 'Independent Glass Input',
+                  useGlass: true,
                 ),
-                const SizedBox(height: 32),
-                _buildInfoSection(
-                  'Segmented Controls',
-                  'Modernized controls following the iOS 26 "floating capsule" design language.',
-                ),
-                const SizedBox(height: 24),
-                AdaptiveSegmentedControl<int>(
-                  selectedValue: _segmentedValue,
-                  values: const [0, 1, 2],
-                  labels: const ['First', 'Second', 'Third'],
-                  onValueChanged: (v) => setState(() => _segmentedValue = v),
-                ),
-                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -493,185 +554,139 @@ class _ShowcaseDetailPageState extends State<_ShowcaseDetailPage>
     );
   }
 
-  static void _dummyOnChanged(dynamic v) {}
-
-  Widget _buildSheetsDemo() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildInfoSection(
-              'Detached Card Sheets',
-              'Native sheets on iOS 26 adopt a "floating card" appearance. They are detached from the screen edges and use the high-fidelity glass material.',
-            ),
-            const SizedBox(height: 40),
-            AdaptiveButton.glassProminent(
-              onPressed: () {
-                showAdaptiveCupertinoSheet(
-                  context,
-                  contentId: 'showcase-sheet',
-                  isFloating: true,
-                  detents: [
-                    AdaptiveSheetDetent.medium,
-                    AdaptiveSheetDetent.large
-                  ],
-                );
-              },
-              child: const Text('Show Native Sheet'),
-            ),
-          ],
-        ),
-      ),
+  Widget _buildInfoSection(String title, String desc) {
+    return Column(
+      children: [
+        Text(title,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(desc,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                fontSize: 14, color: CupertinoColors.secondaryLabel)),
+      ],
     );
   }
 
-  Widget _buildMenusDemo() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildInfoSection(
-              'Glass Menus & Alerts',
-              'Context menus and Alerts in iOS 26 use the new material stack. Long press the button below to see the context menu.',
-            ),
-            const SizedBox(height: 40),
-            CupertinoContextMenu(
-              actions: [
-                CupertinoContextMenuAction(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Native Action 1'),
+  Widget _buildListsDemo() {
+    return CustomScrollView(
+      slivers: [
+        const SliverToBoxAdapter(child: SizedBox(height: 120)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                _buildInfoSection(
+                  'Bento Layouts',
+                  'iOS 26 cards and list tiles using real-time refraction and adaptive materials.',
                 ),
-                CupertinoContextMenuAction(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Native Action 2'),
-                ),
-              ],
-              child: AdaptiveButton.glass(
-                onPressed: () {},
-                child: const Text('Long Press Me'),
-              ),
-            ),
-            const SizedBox(height: 32),
-            AdaptiveButton.glassProminent(
-              color: CupertinoColors.destructiveRed,
-              onPressed: () {
-                showCupertinoDialog(
-                  context: context,
-                  builder: (context) => CupertinoAlertDialog(
-                    title: const Text('Native Glass Alert'),
-                    content: const Text(
-                      'This dialog automatically inherits the iOS 26 material stack when running on a compatible device.',
-                    ),
-                    actions: [
-                      CupertinoDialogAction(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('OK'),
+                const SizedBox(height: 24),
+                AdaptiveCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      AdaptiveListTile(
+                        leading: const Icon(CupertinoIcons.person_fill),
+                        title: const Text('Profile Settings'),
+                        trailing:
+                            const Icon(CupertinoIcons.chevron_right, size: 14),
+                        onTap: () {},
+                      ),
+                      const Divider(height: 1, indent: 56),
+                      AdaptiveListTile(
+                        leading: const Icon(CupertinoIcons.heart_fill),
+                        title: const Text('Favorites'),
+                        trailing:
+                            const Icon(CupertinoIcons.chevron_right, size: 14),
+                        onTap: () {},
                       ),
                     ],
                   ),
-                );
-              },
-              child: const Text('Show Native Alert'),
+                ),
+                const SizedBox(height: 24),
+                const Row(
+                  children: [
+                    Expanded(
+                      child: AdaptiveCard(
+                        borderRadius: 24,
+                        child: Column(
+                          children: [
+                            Icon(CupertinoIcons.chart_bar_fill,
+                                size: 32, color: CupertinoColors.activeBlue),
+                            SizedBox(height: 12),
+                            Text('Stats',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: AdaptiveCard(
+                        borderRadius: 24,
+                        child: Column(
+                          children: [
+                            Icon(CupertinoIcons.cloud_fill,
+                                size: 32, color: CupertinoColors.systemTeal),
+                            SizedBox(height: 12),
+                            Text('Cloud',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const AdaptiveExpansionTile(
+                  leading: Icon(CupertinoIcons.info),
+                  title: Text('Advanced Information'),
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                          'This section contains additional details about the bento layout and its adaptive behavior.'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildInfoSection(String title, String text) {
+  Widget _buildVariantCard(String name, String desc, AdaptiveButtonStyle style,
+      [Color? color]) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: CupertinoColors.systemBackground.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Text(text,
-              style: TextStyle(
-                  fontSize: 15,
-                  height: 1.4,
-                  color: CupertinoColors.label.resolveFrom(context))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-    );
-  }
-
-  Widget _buildVariantPreview(String name, AdaptiveButtonStyle style,
-      {Color? color, required String description}) {
-    return AdaptiveGlassBox(
-      style: style,
-      borderRadius: 20,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: const BoxDecoration(
-          color: CupertinoColors.transparent,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(
-              description,
-              style: const TextStyle(
-                  fontSize: 10, color: CupertinoColors.secondaryLabel),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.bold)),
+                Text(desc,
+                    style: const TextStyle(
+                        fontSize: 12, color: CupertinoColors.secondaryLabel)),
+              ],
             ),
-            const Spacer(),
-            Center(
-              child: AdaptiveButton(
-                style: style,
-                color: color,
-                onPressed: () {
-                  // In True iOS 26, feedback is subtle (Lensing + Z-axis shift)
-                  // We add a console log so you can see it's 100% active
-                  print('📱 [Liquid Glass] Interaction registered: $name');
-                  setState(() {});
-                },
-                child: Text(name.split(' ').first),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMorphDemoUI() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AdaptiveButton.glass(
-            glassEffectID: 'morph-demo-button',
-            onPressed: () => setState(() => _isMorphed = !_isMorphed),
-            child: Text(_isMorphed ? 'Morphed State' : 'Trigger Liquid Morph'),
           ),
-          const SizedBox(height: 32),
-          _buildInfoSection(
-            'Liquid Morphing Bridge',
-            'This button uses glassEffectID: "morph-demo-button". On iOS 26, the native system identifies this material and prepares it for fluid transitions into sheets or other glass elements sharing the same ID.',
+          AdaptiveButton(
+            style: style,
+            color: color,
+            onPressed: () {},
+            child: const Text('Action'),
           ),
         ],
       ),
@@ -686,11 +701,9 @@ class _BackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..maskFilter =
-          const MaskFilter.blur(BlurStyle.normal, 120); // Softer blur
-
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 120);
     final colors = [
-      CupertinoColors.systemPurple.withOpacity(0.2), // Reduced opacity
+      CupertinoColors.systemPurple.withOpacity(0.2),
       CupertinoColors.systemBlue.withOpacity(0.2),
       CupertinoColors.systemPink.withOpacity(0.15),
       CupertinoColors.systemYellow.withOpacity(0.1),
@@ -699,22 +712,11 @@ class _BackgroundPainter extends CustomPainter {
     for (var i = 0; i < colors.length; i++) {
       final angle = (animationValue * 2 * math.pi) + (i * math.pi / 2);
       final offset = Offset(
-        size.width / 2 + math.cos(angle) * 150, // Wider orbit
+        size.width / 2 + math.cos(angle) * 150,
         size.height / 3 + math.sin(angle * 1.5) * 200,
       );
-      canvas.drawCircle(offset, 180 + math.sin(angle) * 50,
-          paint..color = colors[i]); // Larger circles
-    }
-
-    // NEW: Add sharp "Lensing Test" lines for high-fidelity verification
-    final linePaint = Paint()
-      ..color = CupertinoColors.white.withOpacity(0.08) // More subtle lines
-      ..strokeWidth = 1.0;
-
-    for (var i = 0; i < 15; i++) {
-      final x =
-          (size.width / 15 * i + (animationValue * size.width)) % size.width;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
+      canvas.drawCircle(
+          offset, 180 + math.sin(angle) * 50, paint..color = colors[i]);
     }
   }
 

@@ -48,6 +48,8 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
     ) {
         self.viewId = viewId
         _containerView = UIView(frame: frame)
+        _containerView.backgroundColor = .clear
+        _containerView.isOpaque = false
         channel = FlutterMethodChannel(
             name: "adaptive_platform_ui/switch_\(viewId)",
             binaryMessenger: messenger
@@ -142,7 +144,17 @@ class AdaptiveCupertinoSwitchView: NSObject, FlutterPlatformView {
     }
 
     private func handleMethodCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        // Handle potential messages from Flutter if we add dynamic invalidation later
-        result(FlutterMethodNotImplemented)
+        switch call.method {
+        case "setValue":
+            if let args = call.arguments as? [String: Any],
+               let value = args["value"] as? Bool {
+                nativeSwitch.setOn(value, animated: true)
+                result(nil)
+            } else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Missing value", details: nil))
+            }
+        default:
+            result(FlutterMethodNotImplemented)
+        }
     }
 }
