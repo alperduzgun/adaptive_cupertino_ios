@@ -303,6 +303,7 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
 
         if isIOS26 {
             // DETACHED CAPSULE: Floating away from edges (iOS 26 High-Fidelity)
+            // Stricter margins (12pt) to ensure the floating effect is undeniable.
             let leading = glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 12)
             let trailing = glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -12)
             let top = glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 4)

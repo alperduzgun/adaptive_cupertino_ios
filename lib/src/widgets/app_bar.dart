@@ -130,6 +130,10 @@ class AdaptiveCupertinoAppBar extends StatefulWidget
   ///
   /// If provided, the navigation bar's glass backing can morph into/from other
   /// elements (like sheets or buttons) with the same [glassEffectID].
+  ///
+  /// **IMPORTANT:** For the "Liquid Glass" transparency to work correctly,
+  /// you naturally want content to scroll *behind* the app bar. Ensure you set
+  /// [Scaffold.extendBodyBehindAppBar] to true in your Scaffold configuration.
   final String? glassEffectID;
 
   const AdaptiveCupertinoAppBar({

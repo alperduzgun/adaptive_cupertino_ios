@@ -98,9 +98,10 @@ class AdaptiveGlassHelper {
             style = .systemThinMaterial
             tintAlpha = 0.0
             borderAlpha = 0.05
-        case 2: // Identity (Lensing Simulation)
-            style = .systemUltraThinMaterial
-            tintAlpha = 0.05
+        case 2: // Identity (True iOS 26 Liquid Glass)
+            // Research indicates "Thin" or "Chrome" is closer to the pill aesthetic than UltraThin
+            style = .systemThinMaterial
+            tintAlpha = 0.10 // Increased for more "glassy" presence
             borderAlpha = 0.15
         default: // Regular
             style = .systemMaterial
@@ -143,11 +144,9 @@ class AdaptiveGlassHelper {
             ])
         }
         
-        // EXPERIMENTAL: Perspective depth for Identity glass
+        // REMOVED: Scale transform caused visual artifacts and is not part of native behavior.
         if variant == 2 {
             blurView.layer.zPosition = 10
-            // Increased scale for more obvious lensing simulation
-            blurView.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
         }
         
         return blurView
