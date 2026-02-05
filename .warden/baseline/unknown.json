@@ -1,0 +1,494 @@
+{
+  "module": "unknown",
+  "findings": [
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/AdaptiveCupertinoPlugin.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "25 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Form/AdaptiveCupertinoFormSectionFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "932224a042c57dd7761a46d69c1e47dd74bb56f4efe584d01e1ea3a768dd807b"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "33 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Tooltip/AdaptiveCupertinoTooltipFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "72fa175bb1a79e55bac60adcb213aa18124cd5e5f113bed5662afbbe58d8c7df"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "49 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Picker/AdaptiveCupertinoPickerFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "46 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/ListTile/AdaptiveCupertinoExpansionTileFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "aaad4ada80708bb6f981cc98cd2610182a96e62f9d87867637d7a1c84f7d67c9"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 1 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/ListTile/AdaptiveCupertinoListTileFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "15e966915578080bb8b1146edb4324b1fb3724c42ba67848fc8408286124e760"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Toolbar/AdaptiveCupertinoToolbarFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "43 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/TextField/AdaptiveCupertinoTextFieldFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "dcced864f6d484a27092203a3f322819ca25d1ceb77e6076e60fb59eea5aa629"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Slider/AdaptiveCupertinoSliderFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 1 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/TabBar/AdaptiveCupertinoTabBarFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "15e966915578080bb8b1146edb4324b1fb3724c42ba67848fc8408286124e760"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "48 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Toggle/AdaptiveCupertinoToggleFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "f0e0820050cdaf896bf712eee18e55db89e5f176ac6b4b59000b5371ae507ed3"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Glass/AdaptiveCupertinoGlassBoxFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "19 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Common/FlutterFontLoader.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "898fa43051e5b39cebd2245d1d1b8272573c8f8114c2d1900aebfc3b5031df8a"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Button/AdaptiveCupertinoButtonFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "49 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Button/AdaptiveCupertinoFloatingActionButtonFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "49 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/SegmentedControl/AdaptiveCupertinoSegmentedControlFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "31 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Menu/AdaptiveCupertinoMenuFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "7396968b5576a8cacc5f04af629199700b3b49d0db47d82c70910037340c5530"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Switch/AdaptiveCupertinoSwitchFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Sheet/AdaptiveCupertinoSheetManager.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "49 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Helpers/IOSVersionDetector.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Helpers/AdaptivePillHeaderView.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Helpers/AdaptiveGlassHelper.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    },
+    {
+      "id": "resilience-insufficient-handlers",
+      "severity": "low",
+      "message": "50 function calls with only 0 error handlers",
+      "location": "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Badge/AdaptiveCupertinoBadgeFactory.swift:1",
+      "detail": "Consider adding more error handling for external calls",
+      "code": null,
+      "line": 0,
+      "column": 0,
+      "isBlocker": false,
+      "remediation": null,
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335"
+    }
+  ],
+  "debt_items": [
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "932224a042c57dd7761a46d69c1e47dd74bb56f4efe584d01e1ea3a768dd807b",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "25 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "72fa175bb1a79e55bac60adcb213aa18124cd5e5f113bed5662afbbe58d8c7df",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "33 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "49 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "aaad4ada80708bb6f981cc98cd2610182a96e62f9d87867637d7a1c84f7d67c9",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "46 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "15e966915578080bb8b1146edb4324b1fb3724c42ba67848fc8408286124e760",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 1 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "dcced864f6d484a27092203a3f322819ca25d1ceb77e6076e60fb59eea5aa629",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "43 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "15e966915578080bb8b1146edb4324b1fb3724c42ba67848fc8408286124e760",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 1 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "f0e0820050cdaf896bf712eee18e55db89e5f176ac6b4b59000b5371ae507ed3",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "48 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "898fa43051e5b39cebd2245d1d1b8272573c8f8114c2d1900aebfc3b5031df8a",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "19 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "49 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "49 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "7396968b5576a8cacc5f04af629199700b3b49d0db47d82c70910037340c5530",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "31 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "a7827b813595ae58ca13b87421ace9f06b21e63f4a29c0d8404c113344a2061f",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "49 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    },
+    {
+      "fingerprint": "c10257ed2285d556eaa0e8dc0006d5d576a9ac12ca7ff37c55f70afdf685e335",
+      "first_seen": "2026-02-05T21:42:11.757279+00:00",
+      "rule_id": "resilience-insufficient-handlers",
+      "file_path": null,
+      "message": "50 function calls with only 0 error handlers",
+      "severity": "low"
+    }
+  ],
+  "created_at": "2026-02-05T21:42:11.757270+00:00",
+  "updated_at": "2026-02-05T21:42:11.757462+00:00",
+  "debt_count": 23,
+  "oldest_debt_age_days": 0
+}

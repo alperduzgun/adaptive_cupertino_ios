@@ -1,0 +1,282 @@
+{
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/example/ios/RunnerTests/RunnerTests.swift": {
+    "hash": "5e8f4908dacea6f29b2a790e4d38bf5fded69096063f9a27a2f21584d62b30c0",
+    "timestamp": 1770327698.6328871,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/example/ios/Runner/Runner-Bridging-Header.h": {
+    "hash": "1a8d11d01d1cc92c650c9c9ed35299240052d4683a15a719a2315ef44185e074",
+    "timestamp": 1770327698.632889,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/example/ios/Runner/AppDelegate.swift": {
+    "hash": "9418c676adebac7e3f04daa80a7db62066e77f9766c804fd3e5e264124a31f80",
+    "timestamp": 1770327698.632889,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/AppBar/AdaptiveCupertinoNavigationBarFactory.swift": {
+    "hash": "943d2cbb5edfff112fac0797ec61449b1c25d4917b104740408cfd7c7dc8bd60",
+    "timestamp": 1770327698.6328902,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/AdaptiveCupertinoPlugin.swift": {
+    "hash": "98856acdbda62b3b600bf99a9e4f6bc1b2dacc894eea0a200e29faab0b42363d",
+    "timestamp": 1770327698.6328902,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Form/AdaptiveCupertinoFormSectionFactory.swift": {
+    "hash": "4f6fc10fde115472692ee93d1d8fa56de7319b584bb89a955e369d101ea274f8",
+    "timestamp": 1770327698.632891,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Tooltip/AdaptiveCupertinoTooltipFactory.swift": {
+    "hash": "cacc95509a78252b49344f68a4cae26ae2b6e21986bc13bcd4296a37176293b7",
+    "timestamp": 1770327698.632891,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Picker/AdaptiveCupertinoPickerFactory.swift": {
+    "hash": "087a12106b15f877e2d92e9140083275778180cc96c6b539431446fd3686f917",
+    "timestamp": 1770327698.632891,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/ListTile/AdaptiveCupertinoExpansionTileFactory.swift": {
+    "hash": "9b4ab155b5636500a667080b3e92e28f200e05df764f9a00370ece05a01ea4f7",
+    "timestamp": 1770327698.632891,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/ListTile/AdaptiveCupertinoListTileFactory.swift": {
+    "hash": "a98eb4c3ef72d042785aaa52791c8ae12977910d79fc4df665b7753e3274b38b",
+    "timestamp": 1770327698.632892,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Toolbar/AdaptiveCupertinoToolbarFactory.swift": {
+    "hash": "5022cf707bc9bbcdb6224366c1fe1136b78fe5eab4b336e66ae1432ed91879b5",
+    "timestamp": 1770327698.632892,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/TextField/AdaptiveCupertinoTextFieldFactory.swift": {
+    "hash": "150349c1e2daf84c62c008340996b117627d9bc45c4503b1520e3e0c53f7c3fd",
+    "timestamp": 1770327698.6328928,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Slider/AdaptiveCupertinoSliderFactory.swift": {
+    "hash": "864237e3a607144eb9d06a9109afb94b19eb9bd48d11754c3c7feadfb539a788",
+    "timestamp": 1770327698.6328928,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/TabBar/AdaptiveCupertinoTabBarFactory.swift": {
+    "hash": "5a1f199c5d65f5961f2a0997a6e5ab205864903c5e6ade2d1d2a658e4fb47a25",
+    "timestamp": 1770327698.632894,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Toggle/AdaptiveCupertinoToggleFactory.swift": {
+    "hash": "0af6a1a3026472496e085af2751a0e32fc485d4e51a67e8067120464d39f2170",
+    "timestamp": 1770327698.632894,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Glass/AdaptiveCupertinoGlassBoxFactory.swift": {
+    "hash": "0a31814c862ebd77ca802aa18e0fbe04a09646eb65e3e34eb6f3024adf1bae4f",
+    "timestamp": 1770327698.632894,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Common/FlutterFontLoader.swift": {
+    "hash": "e6f21185767c30a97df3f2ee693bcdcbc2d2637aa2a124f1eb78d55cd1a9645f",
+    "timestamp": 1770327698.632894,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Button/AdaptiveCupertinoButtonFactory.swift": {
+    "hash": "0f64af7fb72a669efe05e3fd632dafb9cdabc20d095ab718908df8c3ff127600",
+    "timestamp": 1770327698.632895,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Button/AdaptiveCupertinoFloatingActionButtonFactory.swift": {
+    "hash": "005cac28c9e49c05ecfce19ec7b23914f6cddd41a391c10db89e2482d7da9edd",
+    "timestamp": 1770327698.632895,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/SegmentedControl/AdaptiveCupertinoSegmentedControlFactory.swift": {
+    "hash": "c955a5c18f6dd4c54ed13dc9f6091d2825b8f7ac732f91795ef6cb1f63d5237e",
+    "timestamp": 1770327698.632895,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Menu/AdaptiveCupertinoMenuFactory.swift": {
+    "hash": "7194e89c7245892d0027e7bb842a8dee9e32ef136539653b3b3b459a9936ac42",
+    "timestamp": 1770327698.632895,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Switch/AdaptiveCupertinoSwitchFactory.swift": {
+    "hash": "8651e0226a1eb6380bb6505ccdf38b859e5d7048e053b4e5dd21125c4261ad91",
+    "timestamp": 1770327698.632896,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Sheet/AdaptiveCupertinoSheetManager.swift": {
+    "hash": "2e67299a75ff5c206ec379c50a81f072d4f38cece44c7809a790e1ac5c013ea3",
+    "timestamp": 1770327698.6328971,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Helpers/UIColor+ARGB.swift": {
+    "hash": "1792a3c9d0d4a4757786208eb96b5e1f01743cfdbeaf942a9f763b90bf8f823b",
+    "timestamp": 1770327698.6328971,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Helpers/IOSVersionDetector.swift": {
+    "hash": "1d2e9801d6cfb3fd3771796af5861cb12ff1681651c934c87cc5c89486e91a1b",
+    "timestamp": 1770327698.6328971,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Helpers/AdaptivePillHeaderView.swift": {
+    "hash": "6391af2a598a9f7d83dfe07662274fb30c4b576697063f2dbeec0d47fb6ba818",
+    "timestamp": 1770327698.632898,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Helpers/AdaptiveGlassHelper.swift": {
+    "hash": "4b32e8e875e6fe966415704beb156557653610131b3b49fa9363738cf4c4ec7f",
+    "timestamp": 1770327698.632898,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  },
+  "/Users/alper/Documents/Development/Personal/adaptive_cupertino_ios/ios/Classes/Badge/AdaptiveCupertinoBadgeFactory.swift": {
+    "hash": "0aff3697ef41577e4f4c80c8eee249b68e0931e549b28248e4b9c87de3603acd",
+    "timestamp": 1770327698.632898,
+    "result": {
+      "lsp_diagnostics": {
+        "diagnostics": [],
+        "score": 10.0
+      }
+    }
+  }
+}

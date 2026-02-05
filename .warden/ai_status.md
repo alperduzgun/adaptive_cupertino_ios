@@ -1,11 +1,10 @@
 # Warden Security Status
-Updated: 2026-02-06 00:36:19
+Updated: 2026-02-06 00:42:11
 
-**Status**: PENDING
-**Score**: ?/10
-
-Run `warden scan` to perform initial analysis.
+**Status**: ✅ PASS
+**Critical Issues**: 0
+**Total Issues**: 23
 
 > [!NOTE]
-> Run `warden scan` to update this status.
-> If status is FAIL, check `.warden/reports/` for details.
+> If status is FAIL, please check the full report or run `warden scan` for details.
+> Do not analyze full code unless you are resolving these specific issues.

@@ -1,9 +1,7 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart'; // For Colors.black, transparent
 import 'package:flutter/rendering.dart'; // For PlatformViewHitTestBehavior
 import 'package:flutter/services.dart';
 
@@ -219,22 +217,8 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
         height: 44.0 + MediaQuery.of(context).padding.top,
         child: Stack(
           children: [
-            // 1. Gradient Blur (Masked)
-            ShaderMask(
-              shaderCallback: (rect) {
-                return const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.black, Colors.black, Colors.transparent],
-                  stops: [0.0, 0.6, 1.0],
-                ).createShader(rect);
-              },
-              blendMode: BlendMode.dstIn,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
+            // 1. Transparent Canvas for Blur (If needed later)
+            // Removed ShaderMask/BackdropFilter due to "black lines" artifact.
 
             // 2. Gradient Tint (Surface)
             Container(
@@ -244,10 +228,10 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
                     CupertinoColors.systemBackground
                         .resolveFrom(context)
                         .withOpacity(
-                            0.85), // Slightly reduced opacity for blur to show
+                            0.95), // Increased opacity to compensate for lack of blur
                     CupertinoColors.systemBackground
                         .resolveFrom(context)
-                        .withOpacity(0.2),
+                        .withOpacity(0.4),
                     CupertinoColors.systemBackground
                         .resolveFrom(context)
                         .withOpacity(0.0),

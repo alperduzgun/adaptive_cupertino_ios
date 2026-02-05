@@ -1,8 +1,6 @@
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -87,11 +85,11 @@ class AdaptiveListTile extends StatelessWidget {
                     leading!), // Re-using trailing serializer for now
             },
             creationParamsCodec: const StandardMessageCodec(),
-            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-              Factory<OneSequenceGestureRecognizer>(
-                () => EagerGestureRecognizer(),
-              ),
-            },
+            // gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            //   Factory<OneSequenceGestureRecognizer>(
+            //     () => EagerGestureRecognizer(),
+            //   ),
+            // },
             onPlatformViewCreated: (id) {
               // Setup channel for callbacks
               final channel =
