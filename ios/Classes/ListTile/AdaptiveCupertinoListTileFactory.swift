@@ -45,7 +45,7 @@ class AdaptiveCupertinoListTilePlatformView: NSObject, FlutterPlatformView {
     private let registrar: FlutterPluginRegistrar
     private let fontLoader: FlutterFontLoader
     
-    private var _view: UIView!
+    private var _view: AdaptiveTouchPassThroughView!
     private var containerStack: UIStackView!
     private var mainStack: UIStackView!
     private var titleLabel: UILabel!
@@ -81,7 +81,7 @@ class AdaptiveCupertinoListTilePlatformView: NSObject, FlutterPlatformView {
     }
 
     private func setupViews() {
-        _view = UIView(frame: frame)
+        _view = AdaptiveTouchPassThroughView(frame: frame)
         _view.backgroundColor = .clear
         
         containerStack = UIStackView()
@@ -392,5 +392,36 @@ extension AdaptiveCupertinoListTilePlatformView: UIContextMenuInteractionDelegat
             
             return UIMenu(title: "", children: menuElements)
         }
+    }
+}
+
+class AdaptiveTouchPassThroughView: UIView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hitView = super.hitTest(point, with: event)
+        
+        // If the hit view is the view itself or the container stack (background), return nil
+        // so touches pass through to Flutter (for scrolling/tapping).
+        if hitView == self {
+            return nil
+        }
+        
+        // If the hit view is a UIControl (Switch, Button) or interactive element, keep it.
+        // Also check if it's inside a UIControl (e.g. label inside button)
+        if let view = hitView {
+            if view is UIControl {
+                return view
+            }
+            
+            // Check ancestry for UIControl
+            var superview = view.superview
+            while superview != nil && superview != self {
+                if superview is UIControl {
+                    return view
+                }
+                superview = superview?.superview
+            }
+        }
+        
+        return nil
     }
 }

@@ -114,7 +114,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  double _minimizationFactor = 0.0; // Yetenek: Otomatik Küçülme 🛡️⚡
 
   PreferredSizeWidget? _buildAppBar() {
     switch (_selectedIndex) {
@@ -140,21 +139,18 @@ class _HomePageState extends State<HomePage> {
           ],
         );
       case 2:
-        return AdaptiveCupertinoAppBar(
-          title: const Text('TabBar Demo'),
+        return const AdaptiveCupertinoAppBar(
+          title: Text('TabBar Demo'),
           largeTitle: true,
-          minimizationFactor: _minimizationFactor,
         );
       case 3:
-        return AdaptiveCupertinoAppBar(
-          title: const Text('Combined Demo'),
-          minimizationFactor: _minimizationFactor,
+        return const AdaptiveCupertinoAppBar(
+          title: Text('Combined Demo'),
         );
       case 4:
-        return AdaptiveCupertinoAppBar(
-          title: const Text('Legacy Showcase'),
+        return const AdaptiveCupertinoAppBar(
+          title: Text('Legacy Showcase'),
           largeTitle: true,
-          minimizationFactor: _minimizationFactor,
         );
       default:
         return null;
@@ -174,80 +170,64 @@ class _HomePageState extends State<HomePage> {
     }
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFFE5E5EA), // Flat Apple System Gray 6
+        color:
+            CupertinoColors.black, // Pure Black Background requested by user 🖤
       ),
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          // TabBar Yetenekleri: Scroll ile küçülme (Minimization)
-          if (notification is ScrollUpdateNotification) {
-            final pixels = notification.metrics.pixels;
-            if (!pixels.isNaN && !pixels.isInfinite) {
-              setState(() {
-                _minimizationFactor = (pixels / 150.0).clamp(0.0, 1.0);
-              });
-            }
-          }
-          return false;
-        },
-        child: AdaptiveScaffold(
-          backgroundColor: const Color(0x00000000),
-          extendBodyBehindAppBar: true,
-          appBar: _buildAppBar(),
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: [
-              // 1. Aether Showcase (Default Launch Experience)
-              const AetherSettingsShowcase(),
-              // 2. Bento Components
-              BentoShowcasePage(minimizationFactor: _minimizationFactor),
-              // 3. TabBar Demo
-              TabBarDemoPage(minimizationFactor: _minimizationFactor),
-              // 4. Combined Demo
-              CombinedDemoPage(minimizationFactor: _minimizationFactor),
-              // 5. Legacy Showcase (Hidden/Secondary)
-              const IOS26ShowcasePage(),
-            ],
-          ),
-          bottomNavigationBar: AdaptiveCupertinoTabBar(
-            items: const [
-              AdaptiveCupertinoTabItem(
-                label: 'Aether',
-                icon: CupertinoIcons.sparkles,
-                selectedIcon: CupertinoIcons.sparkles,
-              ),
-              AdaptiveCupertinoTabItem(
-                label: 'Components',
-                icon: CupertinoIcons.square_grid_2x2,
-                selectedIcon: CupertinoIcons.square_grid_2x2_fill,
-              ),
-              AdaptiveCupertinoTabItem(
-                label: 'Tabs',
-                icon: CupertinoIcons.uiwindow_split_2x1,
-                selectedIcon: CupertinoIcons.uiwindow_split_2x1,
-              ),
-              AdaptiveCupertinoTabItem(
-                label: 'Sheets',
-                icon: CupertinoIcons.layers_alt,
-                selectedIcon: CupertinoIcons.layers_alt_fill,
-                sfSymbolName:
-                    'square.stack.3d.up', // Explicit Native Symbol 🛡️
-                selectedSfSymbolName: 'square.stack.3d.up.fill',
-              ),
-              AdaptiveCupertinoTabItem(
-                label: 'Legacy',
-                icon: CupertinoIcons.lab_flask,
-                selectedIcon: CupertinoIcons.lab_flask_solid,
-              ),
-            ],
-            currentIndex: _selectedIndex,
-            minimizationFactor: _minimizationFactor, // Aktif Yetenek!
-            onTap: (index) {
-              setState(() {
-                _selectedIndex = index;
-                _minimizationFactor = 0.0; // Tab değişiminde reset
-              });
-            },
-          ),
+      child: AdaptiveScaffold(
+        backgroundColor: const Color(0x00000000),
+        extendBodyBehindAppBar: true,
+        appBar: _buildAppBar(),
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: const [
+            // 1. Aether Showcase (Default Launch Experience)
+            AetherSettingsShowcase(),
+            // 2. Bento Components
+            BentoShowcasePage(),
+            // 3. TabBar Demo
+            TabBarDemoPage(),
+            // 4. Combined Demo
+            CombinedDemoPage(),
+            // 5. Legacy Showcase (Hidden/Secondary)
+            IOS26ShowcasePage(),
+          ],
+        ),
+        bottomNavigationBar: AdaptiveCupertinoTabBar(
+          items: const [
+            AdaptiveCupertinoTabItem(
+              label: 'Aether',
+              icon: CupertinoIcons.sparkles,
+              selectedIcon: CupertinoIcons.sparkles,
+            ),
+            AdaptiveCupertinoTabItem(
+              label: 'Components',
+              icon: CupertinoIcons.square_grid_2x2,
+              selectedIcon: CupertinoIcons.square_grid_2x2_fill,
+            ),
+            AdaptiveCupertinoTabItem(
+              label: 'Tabs',
+              icon: CupertinoIcons.uiwindow_split_2x1,
+              selectedIcon: CupertinoIcons.uiwindow_split_2x1,
+            ),
+            AdaptiveCupertinoTabItem(
+              label: 'Sheets',
+              icon: CupertinoIcons.layers_alt,
+              selectedIcon: CupertinoIcons.layers_alt_fill,
+              sfSymbolName: 'square.stack.3d.up', // Explicit Native Symbol 🛡️
+              selectedSfSymbolName: 'square.stack.3d.up.fill',
+            ),
+            AdaptiveCupertinoTabItem(
+              label: 'Legacy',
+              icon: CupertinoIcons.lab_flask,
+              selectedIcon: CupertinoIcons.lab_flask_solid,
+            ),
+          ],
+          currentIndex: _selectedIndex,
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
         ),
       ),
     );
@@ -256,8 +236,7 @@ class _HomePageState extends State<HomePage> {
 
 // Tab Bar Demo Page
 class TabBarDemoPage extends StatelessWidget {
-  final double minimizationFactor;
-  const TabBarDemoPage({super.key, required this.minimizationFactor});
+  const TabBarDemoPage({super.key});
 
   // FIXED: No dynamic padding during scroll to avoid jitter.
   // The content starts under the expanded bar and flows naturally.
@@ -302,7 +281,7 @@ class TabBarDemoPage extends StatelessWidget {
               child: Container(
                 height: 100,
                 decoration: BoxDecoration(
-                  color: CupertinoColors.white,
+                  color: CupertinoColors.secondarySystemGroupedBackground,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(child: Text('Scroll Item #$index')),
@@ -483,8 +462,7 @@ class AppBarDemoPage extends StatelessWidget {
 
 // Combined Demo Page
 class CombinedDemoPage extends StatefulWidget {
-  final double minimizationFactor;
-  const CombinedDemoPage({super.key, required this.minimizationFactor});
+  const CombinedDemoPage({super.key});
 
   @override
   State<CombinedDemoPage> createState() => _CombinedDemoPageState();
@@ -629,8 +607,7 @@ class _CombinedDemoPageState extends State<CombinedDemoPage> {
 
 // Settings Page
 class SettingsPage extends StatelessWidget {
-  final double minimizationFactor;
-  const SettingsPage({super.key, required this.minimizationFactor});
+  const SettingsPage({super.key});
 
   // FIXED: No dynamic style change here to avoid feedback loops.
   double get _topPadding => 140.0;
@@ -649,7 +626,7 @@ class SettingsPage extends StatelessWidget {
               child: Container(
                 height: 60,
                 decoration: BoxDecoration(
-                  color: CupertinoColors.white,
+                  color: CupertinoColors.secondarySystemGroupedBackground,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Padding(

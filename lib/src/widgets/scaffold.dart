@@ -202,7 +202,7 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
                         widget.extendBodyBehindAppBar ? 0.0 : topPadding;
 
                     // We allow body to extend to the bottom (behind the bar).
-                    const double effectiveContentBottomPadding = 0.0;
+                    // const double effectiveContentBottomPadding = 0.0;
 
                     // For the injected MediaQuery:
                     // We tell the child about the bottom obstruction so it can pad its list end.

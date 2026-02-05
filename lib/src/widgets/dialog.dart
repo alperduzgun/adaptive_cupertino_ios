@@ -127,9 +127,7 @@ Future<T?> showAdaptiveDialog<T>({
     // Phase 5: Native Dialog Implementation
     // Use MethodChannel to show actual UIAlertController
     try {
-      final List<Map<String, dynamic>> serializedActions = [];
-
-      // We need to inspect the actions to serialize them.
+      // Actions are serialized internally by UiKitView codec
       // This is tricky because actions are generic Widgets in the builder.
       // HOWEVER, showAdaptiveAlertDialog uses AdaptiveDialogAction explicitly.
       // We'll enforce a check here or fallback to Flutter implementation if widgets aren't AdaptiveDialogAction.

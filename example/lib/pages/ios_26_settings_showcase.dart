@@ -14,87 +14,113 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
   DateTime _birthday = DateTime(1990, 5, 20);
   bool _faceIdEnabled = true;
   bool _notificationsEnabled = true;
-  int _securityLevel = 1; // 0: Standard, 1: Advanced, 2: Ultra
+  int _securityLevel = 1;
   bool _chaosMode = false;
-
-  // New State for added components
   double _hapticIntensity = 0.5;
-  int _interfaceMode = 0; // 0: Solid, 1: Fluid, 2: Vapor
+  int _interfaceMode = 0;
   bool _useSpaciousToolbar = false;
   final GlobalKey _sheetSourceKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
+    // RESTORED: Early "Static Pill" Logic (Commit 81c3492)
+    // No manual minimization listener.
+    // No background gradient.
+    // Just AdaptiveScaffold + AppBar.
+    // The native side defaults to "Detached Capsule" (Pill) when factor is 0.0.
     return AdaptiveScaffold(
-      backgroundColor: const Color(0x00000000),
+      backgroundColor: const Color(0xFFE5E5EA), // System Grey 6
       extendBodyBehindAppBar: true,
-      appBar: const AdaptiveCupertinoAppBar(
-        title: Text('Aether Settings'),
-        largeTitle: true,
+
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(44.0),
+        child: AdaptiveCupertinoToolbar(
+          title: 'Aether Settings',
+          leadingAction: AdaptiveCupertinoAction(
+            sfSymbolName: 'person.crop.circle',
+            onPressed: () {},
+          ),
+          trailingActions: [
+            AdaptiveCupertinoAction(
+              sfSymbolName: 'line.3.horizontal.decrease.circle',
+              onPressed: () {
+                showCupertinoModalPopup(
+                  context: context,
+                  builder: (context) => CupertinoActionSheet(
+                    title: const Text('Filter Settings'),
+                    actions: [
+                      CupertinoActionSheetAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Show Active Only'),
+                      ),
+                      CupertinoActionSheetAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Show Security Only'),
+                      ),
+                    ],
+                    cancelButton: CupertinoActionSheetAction(
+                      isDestructiveAction: true,
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                );
+              },
+            ),
+            AdaptiveCupertinoAction(
+              sfSymbolName: 'ellipsis.circle',
+              onPressed: () {
+                showCupertinoModalPopup(
+                  context: context,
+                  builder: (context) => CupertinoActionSheet(
+                    actions: [
+                      CupertinoActionSheetAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Reset All Settings'),
+                      ),
+                      CupertinoActionSheetAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Export Configuration'),
+                      ),
+                    ],
+                    cancelButton: CupertinoActionSheetAction(
+                      isDestructiveAction: true,
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
-      // NEW: Toolbar at bottom for quick actions
-      bottomNavigationBar: AdaptiveCupertinoToolbar(
-        isBottom: true,
-        leadingAction: AdaptiveCupertinoAction(
-            sfSymbolName: 'arrow.counterclockwise', onPressed: () {}),
-        title: 'System Active',
-        trailing: _useSpaciousToolbar
-            ? [
-                const Spacer(),
-                const Icon(CupertinoIcons.gear),
-                const Spacer(),
-                const Icon(CupertinoIcons.ellipsis_circle),
-              ] // Distributed layout
-            : null,
-        trailingActions: _useSpaciousToolbar
-            ? null // Use widget list for spacers
-            : [
-                AdaptiveCupertinoAction(sfSymbolName: 'gear', onPressed: () {}),
-                AdaptiveCupertinoAction(
-                  sfSymbolName: 'ellipsis.circle',
-                  onPressed: () {
-                    debugPrint('Menu action tapped');
-                  },
-                ),
-              ],
+
+      body: CustomScrollView(
+        slivers: [
+          // Padding to push content below the Large Title Pill (~140pt)
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+                20, 140 + MediaQuery.paddingOf(context).top, 20, 100),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate.fixed([
+                _buildIdentitySection(),
+                const SizedBox(height: 32),
+                _buildProfileSection(),
+                const SizedBox(height: 32),
+                _buildControlSection(),
+                const SizedBox(height: 32),
+                _buildActionsSection(),
+                const SizedBox(height: 120),
+              ]),
+            ),
+          ),
+        ],
       ),
 
       floatingActionButton: AdaptiveFloatingActionButton(
         icon: const Icon(CupertinoIcons.sparkles),
-        onPressed: () {
-          showAdaptiveSnackBar(
-            context,
-            message: 'Aether configuration synchronized.',
-            useGlass: true,
-          );
-        },
-        useGlass: true,
-      ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-                20,
-                140,
-                20,
-                MediaQuery.paddingOf(context).bottom +
-                    20), // Dynamic bottom padding
-            sliver: SliverList(
-              delegate: SliverChildListDelegate.fixed(
-                [
-                  _buildIdentitySection(),
-                  const SizedBox(height: 32),
-                  _buildProfileSection(),
-                  const SizedBox(height: 32),
-                  _buildControlSection(),
-                  const SizedBox(height: 32),
-                  _buildActionsSection(),
-                  const SizedBox(height: 120), // Spacing for FAB
-                ],
-              ),
-            ),
-          ),
-        ],
+        onPressed: () {},
       ),
     );
   }
@@ -151,12 +177,11 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
       useGlass: true,
       children: [
         AdaptiveListTile(
-          key: _sheetSourceKey, // Source for morphing transition
+          key: _sheetSourceKey,
           title: const Text('Display Name'),
           subtitle: Text(_userName),
           trailing: const Icon(CupertinoIcons.pencil, size: 16),
           onTap: () async {
-            // NEW: Use Native Sheet with Morphing
             showAdaptiveCupertinoSheet(
               context,
               contentId: 'profile-edit-sheet',
@@ -187,7 +212,6 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
   Widget _buildControlSection() {
     return Column(
       children: [
-        // NEW: Segmented Control for Mode
         SizedBox(
           width: double.infinity,
           child: AdaptiveSegmentedControl<int>(
@@ -214,7 +238,6 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
                 children: [
-                  // NEW: Slider for Haptics
                   const Row(
                     children: [
                       Icon(CupertinoIcons.waveform,
@@ -317,8 +340,7 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
                   sfSymbol: 'wifi',
                   effect: 'pulse',
                   useGlass: true,
-                  labelColor: CupertinoColors
-                      .black, // Dark icon for visibility on glass
+                  labelColor: CupertinoColors.black,
                   child: Icon(CupertinoIcons.circle_fill,
                       color: CupertinoColors.systemGrey6, size: 32),
                 ),
@@ -404,7 +426,7 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
           subtitle: const Text('Tap for details, hold for actions'),
           trailing: const Icon(CupertinoIcons.brightness,
               size: 16, color: CupertinoColors.systemGrey2),
-          useGlass: true, // Internal glass for the tile
+          useGlass: true,
           onTap: () {
             showAdaptiveSnackBar(context, message: 'Account Details');
           },
@@ -417,21 +439,6 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
                     message: 'ID Copied to Clipboard', useGlass: true);
               },
             ),
-            AdaptiveContextMenuItem(
-              child: const Text('Share Profile'),
-              icon: 'square.and.arrow.up',
-              onPressed: () {
-                // Share logic
-              },
-            ),
-            AdaptiveContextMenuItem(
-              child: const Text('Deactivate'),
-              icon: 'trash',
-              isDestructive: true,
-              onPressed: () {
-                // Destructive logic
-              },
-            ),
           ],
         ),
         AdaptiveListTile(
@@ -442,7 +449,6 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
           ),
         ),
         const SizedBox(height: 16),
-        // Button Showcase Row
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
@@ -474,14 +480,6 @@ class _AetherSettingsShowcaseState extends State<AetherSettingsShowcase> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: AdaptiveButton.glassClear(
-                  onPressed: () {},
-                  child: const Text('Reset All Configurations'),
-                ),
               ),
             ],
           ),

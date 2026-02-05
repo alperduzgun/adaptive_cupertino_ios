@@ -1,8 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 class BentoShowcasePage extends StatefulWidget {
-  final double minimizationFactor;
-  const BentoShowcasePage({super.key, this.minimizationFactor = 0.0});
+  const BentoShowcasePage({super.key});
 
   @override
   State<BentoShowcasePage> createState() => _BentoShowcasePageState();

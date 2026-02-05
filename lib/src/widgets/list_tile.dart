@@ -70,46 +70,51 @@ class AdaptiveListTile extends StatelessWidget {
         width: double.infinity,
         height: min(subtitle != null ? 64 : 48,
             100), // Approximate height refined for proportionality
-        child: UiKitView(
-          viewType: 'adaptive_cupertino_ios/list_tile',
-          creationParams: {
-            'title': (title is Text) ? (title as Text).data : '',
-            'subtitle': (subtitle is Text) ? (subtitle as Text).data : null,
-            'useGlass': useGlass,
-            if (serializedActions != null)
-              'contextMenuActions': serializedActions,
-            if (trailing != null) 'trailing': _serializeTrailing(trailing!),
-            if (leading != null)
-              'leading': _serializeTrailing(
-                  leading!), // Re-using trailing serializer for now
-          },
-          creationParamsCodec: const StandardMessageCodec(),
-          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-            Factory<OneSequenceGestureRecognizer>(
-              () => EagerGestureRecognizer(),
-            ),
-          },
-          onPlatformViewCreated: (id) {
-            // Setup channel for callbacks
-            final channel =
-                MethodChannel('adaptive_cupertino_ios/list_tile_$id');
-            channel.setMethodCallHandler((call) async {
-              if (call.method == 'onTap') {
-                onTap?.call();
-              } else if (call.method == 'onContextMenuAction') {
-                final index = call.arguments['index'] as int;
-                if (contextMenuActions != null &&
-                    index < contextMenuActions!.length) {
-                  contextMenuActions![index].onPressed();
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: UiKitView(
+            viewType: 'adaptive_cupertino_ios/list_tile',
+            creationParams: {
+              'title': (title is Text) ? (title as Text).data : '',
+              'subtitle': (subtitle is Text) ? (subtitle as Text).data : null,
+              'useGlass': useGlass,
+              if (serializedActions != null)
+                'contextMenuActions': serializedActions,
+              if (trailing != null) 'trailing': _serializeTrailing(trailing!),
+              if (leading != null)
+                'leading': _serializeTrailing(
+                    leading!), // Re-using trailing serializer for now
+            },
+            creationParamsCodec: const StandardMessageCodec(),
+            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+              Factory<OneSequenceGestureRecognizer>(
+                () => EagerGestureRecognizer(),
+              ),
+            },
+            onPlatformViewCreated: (id) {
+              // Setup channel for callbacks
+              final channel =
+                  MethodChannel('adaptive_cupertino_ios/list_tile_$id');
+              channel.setMethodCallHandler((call) async {
+                if (call.method == 'onTap') {
+                  // Native can still trigger tap if needed, but primary is now Flutter
+                  onTap?.call();
+                } else if (call.method == 'onContextMenuAction') {
+                  final index = call.arguments['index'] as int;
+                  if (contextMenuActions != null &&
+                      index < contextMenuActions!.length) {
+                    contextMenuActions![index].onPressed();
+                  }
+                } else if (call.method == 'onTrailingChanged') {
+                  final newValue = call.arguments['value'] as bool;
+                  if (trailing is AdaptiveSwitch) {
+                    (trailing as AdaptiveSwitch).onChanged?.call(newValue);
+                  }
                 }
-              } else if (call.method == 'onTrailingChanged') {
-                final newValue = call.arguments['value'] as bool;
-                if (trailing is AdaptiveSwitch) {
-                  (trailing as AdaptiveSwitch).onChanged?.call(newValue);
-                }
-              }
-            });
-          },
+              });
+            },
+          ),
         ),
       );
     }

@@ -301,12 +301,18 @@ class AdaptiveCupertinoNavigationBarPlatformView: NSObject, FlutterPlatformView,
         self.glassBackingView = glassView
         _view.pillBoundView = glassView
 
+        // Force a specific background color for debugging visibility if needed
+        // glassView.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3) 
+
         if isIOS26 {
             // DETACHED CAPSULE: Floating away from edges (iOS 26 High-Fidelity)
             // Stricter margins (12pt) to ensure the floating effect is undeniable.
             let leading = glassView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 12)
             let trailing = glassView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -12)
-            let top = glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 4)
+            // CRITICAL FIX: Ensure the top constraint accounts for the status bar!
+            // If topPadding is 0, it might be behind the Dynamic Island.
+            // We pin to the top of the VIEW (which starts at 0), so topPadding is actually the safe area inset.
+            let top = glassView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding > 20 ? topPadding : 54) // Ensure strictly below Island if no padding provided
             let bottom = glassView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -4)
             
             self.glassLeadingConstraint = leading

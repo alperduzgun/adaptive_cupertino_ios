@@ -111,30 +111,8 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
         }
 
         if enableLiquidGlass {
-            // REMOVED: Custom Liquid Glass Background (User request: "kaldır background u")
-            /*
-            let headerView = AdaptivePillHeaderView(frame: .zero, direction: isBottom ? .bottom : .top, isInteractive: true, useFadingGradient: true)
-            headerView.translatesAutoresizingMaskIntoConstraints = false
-            _view.addSubview(headerView)
-            
-            if isBottom {
-                NSLayoutConstraint.activate([
-                    headerView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 16),
-                    headerView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -16),
-                    headerView.topAnchor.constraint(equalTo: _view.topAnchor, constant: 4),
-                    headerView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -bottomPadding - 12)
-                ])
-                headerView.layer.cornerRadius = 24
-            } else {
-                NSLayoutConstraint.activate([
-                    headerView.leadingAnchor.constraint(equalTo: _view.leadingAnchor, constant: 16),
-                    headerView.trailingAnchor.constraint(equalTo: _view.trailingAnchor, constant: -16),
-                    headerView.topAnchor.constraint(equalTo: _view.topAnchor, constant: topPadding + 8),
-                    headerView.bottomAnchor.constraint(equalTo: _view.bottomAnchor, constant: -8)
-                ])
-                headerView.layer.cornerRadius = 24
-            }
-            */
+            // Reverted: Native solution was not satisfactory.
+            // Returning to Flutter-side manual gradient control.
         }
 
         configureToolbarAppearance()
@@ -238,7 +216,7 @@ class AdaptiveCupertinoToolbarPlatformView: NSObject, FlutterPlatformView, UIToo
             return UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         }
         
-        if let systemIconName = data["systemIcon"] as? String {
+        if let systemIconName = data["systemIcon"] as? String ?? data["iconName"] as? String {
              let image = UIImage(systemName: systemIconName)
              let button = UIBarButtonItem(
                  image: image,

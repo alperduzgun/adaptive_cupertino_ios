@@ -42,7 +42,8 @@ class IOSVersionDetector {
 
         // Fallback/Experimental: Run iOS 26 features on iOS 18+ for high-fidelity glass demo
         let major = getMajorVersion()
-        if major >= 18 {
+        // FORCE iOS 26 MODE: Lower threshold to 15 to ensure Pill UI on all simulators
+        if major >= 15 {
             os_log(.info, log: logger, "📱 Experimental Mode: Enabling iOS 26 features on iOS %d", major)
             return true
         }

@@ -5,10 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../platform/ios_version.dart';
-import '../util/serialization.dart';
 import 'action.dart';
-import 'app_bar.dart';
-import 'layout_notification.dart';
 
 /// Native iOS 26+ Toolbar with pill-shaped button grouping.
 ///
@@ -37,34 +34,6 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
   /// Height of the toolbar (standard is 44.0).
   final double height;
 
-  /// Enable/disable the custom LiquidGlass background effect.
-  /// When false, toolbar has no background (completely transparent).
-  /// Default: true
-  final bool enableLiquidGlass;
-
-  /// Use plain text title (no pill/bubble background).
-  /// When true: Title appears as plain text (recommended by Apple HIG)
-  /// When false: Title appears in iOS 26 glass pill style
-  /// Default: false
-  final bool usePlainTitle;
-
-  /// Custom color for the title text.
-  /// When null: Uses system adaptive color (black in light mode, white in dark mode)
-  /// Default: null (adaptive)
-  final Color? titleColor;
-
-  /// Search configuration for native search bar.
-  final AdaptiveCupertinoSearchOptions? searchOptions;
-
-  /// Controller for programmatic interaction.
-  final AdaptiveCupertinoAppBarController? controller;
-
-  /// Whether the toolbar is positioned at the bottom of the screen.
-  ///
-  /// When true, the toolbar will apply bottom safe area padding (Home Indicator)
-  /// and render as a floating capsule (Pill) on iOS 26+.
-  final bool isBottom;
-
   const AdaptiveCupertinoToolbar({
     Key? key,
     this.title,
@@ -73,21 +42,7 @@ class AdaptiveCupertinoToolbar extends StatefulWidget
     this.trailing,
     this.trailingActions,
     this.height = 44.0,
-    this.enableLiquidGlass = true,
-    this.usePlainTitle = false,
-    this.titleColor,
-    this.searchOptions,
-    this.controller,
-    this.isBottom = false,
-  })  : assert(
-          title == null || title.length <= 100,
-          'Title must be 100 characters or less for optimal display',
-        ),
-        assert(
-          height >= 44.0 && height <= 200.0,
-          'Height must be between 44.0 and 200.0',
-        ),
-        super(key: key);
+  }) : super(key: key);
 
   @override
   State<AdaptiveCupertinoToolbar> createState() =>
@@ -106,31 +61,6 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
   void initState() {
     super.initState();
     _checkIOSVersion();
-    widget.controller?.addListener(_handleControllerChange);
-  }
-
-  @override
-  void didUpdateWidget(AdaptiveCupertinoToolbar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.controller != oldWidget.controller) {
-      oldWidget.controller?.removeListener(_handleControllerChange);
-      widget.controller?.addListener(_handleControllerChange);
-
-      if (_useNativeToolbar && widget.controller != null) {
-        // Sync new controller state immediately
-        _handleControllerChange();
-      }
-    }
-  }
-
-  void _handleControllerChange() {
-    if (widget.controller != null &&
-        _toolbarChannel != null &&
-        _useNativeToolbar) {
-      _toolbarChannel?.invokeMethod('setSearchActive', {
-        'active': widget.controller!.isSearchActive,
-      });
-    }
   }
 
   Future<void> _checkIOSVersion() async {
@@ -188,37 +118,6 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
           }
         }
         break;
-      case 'onSearchQueryChanged':
-        final args = call.arguments as Map<dynamic, dynamic>;
-        final query = args['query'] as String;
-        widget.searchOptions?.onQueryChanged?.call(query);
-        break;
-      case 'onSearchSubmitted':
-        final args = call.arguments as Map<dynamic, dynamic>;
-        final query = args['query'] as String;
-        widget.searchOptions?.onSubmitted?.call(query);
-        break;
-      case 'onSearchCancelled':
-        widget.searchOptions?.onCancelled?.call();
-        break;
-      case 'onSearchActive':
-        final active = call.arguments['active'] as bool;
-        widget.controller?.setSearchActive(active);
-        break;
-      case 'onLayoutChanged':
-        final args = call.arguments as Map<dynamic, dynamic>;
-        final height = args['height'] as double;
-        final safeArea = args['safeArea'] as double;
-
-        if (mounted) {
-          // Dispatch notification up to AdaptiveScaffold
-          AdaptiveLayoutNotification(
-            height: height,
-            isTop: false,
-            safeArea: safeArea,
-          ).dispatch(context);
-        }
-        break;
     }
   }
 
@@ -237,9 +136,31 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
     }
   }
 
+  Map<String, dynamic>? _serializeWidget(Widget widget) {
+    if (widget is Icon) {
+      return {
+        'type': 'icon',
+        'iconCode': widget.icon?.codePoint,
+        'iconFamily': widget.icon?.fontFamily,
+      };
+    }
+    if (widget is CupertinoButton) {
+      final child = widget.child;
+      if (child is Icon) {
+        return {
+          'type': 'icon',
+          'iconCode': child.icon?.codePoint,
+          'iconFamily': child.icon?.fontFamily,
+          'prominent':
+              widget.color != null, // Treat colored buttons as prominent
+        };
+      }
+    }
+    return null;
+  }
+
   @override
   void dispose() {
-    widget.controller?.removeListener(_handleControllerChange);
     _toolbarChannel?.setMethodCallHandler(null);
     super.dispose();
   }
@@ -273,7 +194,7 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
         debugPrint('📱 [Toolbar] Using shared Action model for leading');
       }
     } else if (widget.leading != null) {
-      leadingData = WidgetSerializer.serialize(widget.leading!);
+      leadingData = _serializeWidget(widget.leading!);
     }
 
     // Serialize trailing widgets
@@ -285,47 +206,41 @@ class _AdaptiveCupertinoToolbarState extends State<AdaptiveCupertinoToolbar> {
       }
     } else if (widget.trailing != null && widget.trailing!.isNotEmpty) {
       trailingData = widget.trailing!
-          .map((w) => WidgetSerializer.serialize(w))
+          .map((w) => _serializeWidget(w))
           .whereType<Map<String, dynamic>>()
           .toList();
     }
 
-    final bool isIOS26Plus = _useNativeToolbar;
-    final double adjustedHeight = widget.height + (isIOS26Plus ? 12.0 : 0.0);
-
-    // CHAOS SAFETY: Prevent NaN/Infinite from breaking platform view frame
-    final double rawTopPadding = MediaQuery.paddingOf(context).top;
-    final double topPadding =
-        (rawTopPadding.isNaN || rawTopPadding.isInfinite) ? 0.0 : rawTopPadding;
-
-    final double rawBottomPadding = MediaQuery.paddingOf(context).bottom;
-    final double bottomPadding =
-        (rawBottomPadding.isNaN || rawBottomPadding.isInfinite)
-            ? 0.0
-            : rawBottomPadding;
-
-    final double totalHeight =
-        adjustedHeight + (widget.isBottom ? bottomPadding : topPadding);
-
-    final double validHeight =
-        (totalHeight.isNaN || totalHeight.isInfinite) ? 44.0 : totalHeight;
-
-    return SizedBox(
-      height: validHeight,
+    return Container(
+      height: 44.0 + MediaQuery.of(context).padding.top,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            // iOS 26 Liquid Glass: High refractive index surface
+            CupertinoColors.systemBackground
+                .resolveFrom(context)
+                .withOpacity(0.92),
+            // Fluid body
+            CupertinoColors.systemBackground
+                .resolveFrom(context)
+                .withOpacity(0.35),
+            // Dissolve
+            CupertinoColors.systemBackground
+                .resolveFrom(context)
+                .withOpacity(0.0),
+          ],
+          stops: const [0.0, 0.45, 1.0], // Organic decay
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
       child: UiKitView(
         viewType: 'adaptive_cupertino_ios/toolbar',
         creationParams: {
           'title': widget.title,
-          'topPadding': topPadding,
-          'bottomPadding': bottomPadding,
-          'isBottom': widget.isBottom,
-          'enableLiquidGlass': widget.enableLiquidGlass,
-          'usePlainTitle': widget.usePlainTitle,
-          if (widget.titleColor != null) 'titleColor': widget.titleColor!.value,
+          'topPadding': MediaQuery.of(context).padding.top,
           if (leadingData != null) 'leading': leadingData,
           if (trailingData != null) 'trailing': trailingData,
-          if (widget.searchOptions != null)
-            'searchOptions': widget.searchOptions!.toMap(),
         },
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: _setupPlatformChannel,
